@@ -1,0 +1,178 @@
+{
+    "brand": {
+        "name": "EazyService",
+        "tagline": "BY EAZYSERVICE INDIA",
+        "heroHeadline": "Best AC Service & Repair in Delhi-NCR",
+        "heroRating": "4.8",
+        "heroBookingCount": "3.8M bookings near you",
+        "heroBackgroundImage": "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=2000&auto=format&fit=crop",
+        "heroPersonImage": "https://images.unsplash.com/photo-1599933334293-875fa7648358?q=80&w=2000&auto=format&fit=crop",
+        "vipText": "Save upto 15% off on cleaning, plumbing and ac services"
+    },
+    "contact": {
+        "phone": "+91 9999999999",
+        "phoneLink": "tel:+919999999999",
+        "email": "info@eazyserviceindia.shop",
+        "address": "Connaught Place, New Delhi, 110001",
+        "whatsapp": "919999999999",
+        "businessHours": "Mon - Sun: 8:00 AM - 10:00 PM",
+        "facebook": "#",
+        "instagram": "#",
+        "twitter": "#"
+    },
+    "serviceAreas": [
+        "Delhi",
+        "Gurgaon",
+        "Noida",
+        "Faridabad",
+        "Ghaziabad"
+    ],
+    "services": [
+        {
+            "id": "ac-dry-wet-cleaning-service",
+            "title": "Service",
+            "heading": "Deep AC Dry & Wet Cleaning.",
+            "description": "Breathe healthier air with our comprehensive cleaning service. We use eco-friendly chemicals and high-pressure pumps to remove every speck of dust and mold.",
+            "subheadings": [
+                "Deep cleaning for better air quality.",
+                "Eco-friendly chemicals and high-pressure wash."
+            ],
+            "badge": "Free Gas Checkup",
+            "content": [
+                "Coil Cleaning",
+                "Drain Flush",
+                "Dust Removal",
+                "Filter Wash",
+                "Outdoor Unit"
+            ],
+            "bullets": [
+                "Better Cooling",
+                "Lower Bills",
+                "No Odors"
+            ],
+            "highlight": "Regular servicing improves cooling efficiency by up to 40%.",
+            "image": "https://picsum.photos/seed/cleaning/1200/800"
+        },
+        {
+            "id": "ac-repair-service",
+            "title": "Repair",
+            "heading": "Fast & Reliable AC Repair Services.",
+            "description": "Don't let the heat get to you. Our expert team diagnoses and fixes all AC issues within hours, ensuring your comfort is restored immediately.",
+            "subheadings": [
+                "Fast, reliable & affordable AC repair at your doorstep.",
+                "Same-day service across Delhi-NCR by certified technicians."
+            ],
+            "badge": "Assured Cooling",
+            "content": [
+                "No Cooling",
+                "Water Leak",
+                "Gas Leak",
+                "Loud Noise",
+                "No Power"
+            ],
+            "bullets": [
+                "Same-Day Fix",
+                "Local Experts",
+                "Fair Pricing"
+            ],
+            "highlight": "",
+            "image": "https://picsum.photos/seed/repair/1200/800"
+        },
+        {
+            "id": "ac-install-uninstall-service",
+            "title": "Installation/Uninstallation",
+            "heading": "Expert AC Installation & Uninstallation.",
+            "description": "We provide seamless setup and relocation for all major AC brands. Our technicians ensure perfect alignment and leak-proof fitting for long-lasting performance.",
+            "subheadings": [
+                "Professional setup for all AC brands.",
+                "Safe uninstallation and relocation services."
+            ],
+            "badge": "Trending",
+            "content": [
+                "Split AC",
+                "Window AC",
+                "AC Shifting",
+                "Copper Pipe",
+                "Wall Mount"
+            ],
+            "bullets": [
+                "Certified Techs",
+                "90-Day Warranty",
+                "No Hidden Fees"
+            ],
+            "highlight": "",
+            "image": "https://picsum.photos/seed/install/1200/800"
+        },
+        {
+            "id": "ac-gas-refilling-service",
+            "title": "Gas Charging",
+            "heading": "Premium AC Gas Refilling.",
+            "description": "Restore your AC's cooling power with genuine refrigerant gas. We perform thorough leak detection before refilling to ensure a permanent solution.",
+            "subheadings": [
+                "Genuine refrigerant gas for all models.",
+                "Leak detection and pressure testing included."
+            ],
+            "badge": "Upto 60% off",
+            "content": [
+                "R22 Refill",
+                "R32 Refill",
+                "R410A Refill",
+                "Pressure Check",
+                "Leak Detect"
+            ],
+            "bullets": [
+                "Full Charge",
+                "Leak Repair",
+                "Cooling Guarantee"
+            ],
+            "highlight": "",
+            "image": "https://picsum.photos/seed/gas/1200/800"
+        }
+    ],
+    "reviews": [
+        {
+            "name": "Rahul S.",
+            "location": "Delhi",
+            "text": "Best AC service I've had in Delhi-NCR. They arrived within 25 minutes of calling for an emergency repair. Highly recommend!"
+        },
+        {
+            "name": "Anita Sharma",
+            "location": "Gurgaon",
+            "text": "Professional technicians. They did a wet cleaning of my split AC and the cooling is like new now. Affordable too."
+        },
+        {
+            "name": "Vikram K.",
+            "location": "Noida",
+            "text": "Needed urgent installation for my new AC. These guys were prompt and did a very clean job. Great service."
+        },
+        {
+            "name": "Priya Mehta",
+            "location": "Faridabad",
+            "text": "Gas refilling was done at a very reasonable price. Honest technicians who don't charge extra. My go-to for AC now."
+        }
+    ],
+    "faqs": [
+        {
+            "q": "How fast can you reach in Delhi-NCR?",
+            "a": "We aim to reach any location in Delhi, Gurgaon, Noida, and surrounding areas within 20 to 45 minutes of booking, depending on traffic and exact location."
+        },
+        {
+            "q": "Do you provide same-day AC repair?",
+            "a": "Yes, we specialize in same-day emergency repairs. Most calls are handled on the same day if booked before 6 PM."
+        },
+        {
+            "q": "Which AC brands do you support?",
+            "a": "We support all major brands including Voltas, LG, Samsung, Daikin, Mitsubishi, Blue Star, Carrier, Godrej, and more."
+        },
+        {
+            "q": "Do you offer warranty?",
+            "a": "Yes, we provide a 30-day free repeat visit guarantee on all our repair and service work. If the same issue recurs, we fix it for free."
+        }
+    ],
+    "searchPlaceholders": [
+        "AC Dry & Wet Cleaning Service",
+        "AC Repair Service Delhi-NCR",
+        "AC Install & Uninstall Service",
+        "AC Gas Refilling Service"
+    ]
+}
