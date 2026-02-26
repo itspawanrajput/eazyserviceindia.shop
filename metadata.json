@@ -1,0 +1,7 @@
+{
+  "name": "CoolGoa AC Services",
+  "description": "Premium AC repair, cleaning, installation, and gas refilling services across Goa. Fast 20-minute response time with certified technicians.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
