@@ -1,0 +1,7 @@
+{
+  "name": "EazyService AC Services",
+  "description": "Premium AC repair, cleaning, installation, and gas refilling services across Delhi-NCR. Fast 20-minute response time with certified technicians.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
