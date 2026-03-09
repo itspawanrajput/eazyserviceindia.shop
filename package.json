@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build",
+    "build": "vite build && tsc server.ts --esModuleInterop --skipLibCheck --moduleResolution node --target es2022 --module es2022 --outDir .",
     "lint": "tsc --noEmit",
     "preview": "vite preview",
-    "start": "NODE_ENV=production tsx server.ts"
+    "start": "NODE_ENV=production node server.js"
   },
   "dependencies": {
     "@google/genai": "^1.42.0",
