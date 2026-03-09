@@ -335,7 +335,18 @@ async function startServer() {
     app.post("/api/upload", authenticate, upload.single("file"), (req, res) => {
         if (!req.file)
             return res.status(400).json({ error: "No file uploaded" });
-        res.json({ url: `/uploads/${req.file.filename}` });
+        // Use an API route to bypass Hostinger Nginx intercepting static file extensions
+        res.json({ url: `/api/media?f=${req.file.filename}` });
+    });
+    // Dynamic Media Server to bypass Hostinger Nginx static file intercepts
+    app.get("/api/media", (req, res) => {
+        const filename = req.query.f;
+        if (!filename)
+            return res.status(400).send("No file specified");
+        const filepath = path.join(__dirname, "uploads", filename);
+        if (!fs.existsSync(filepath))
+            return res.status(404).send("File not found");
+        res.sendFile(filepath);
     });
     // Builder Endpoints
     app.get("/api/builder/page/:id", async (req, res) => {
