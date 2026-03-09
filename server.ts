@@ -73,6 +73,17 @@ async function startServer() {
       published_json TEXT,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS visitors (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ip_address TEXT,
+      user_agent TEXT,
+      device_type TEXT,
+      browser TEXT,
+      os TEXT,
+      path TEXT,
+      visit_time DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   // Initialize page state if empty
@@ -325,6 +336,52 @@ async function startServer() {
     } catch (error) {
       console.error("Error reverse geocoding on server:", error);
       res.status(500).json({ location: `${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)}` });
+    }
+  });
+
+  // Visitor Tracking
+  app.post("/api/track", async (req, res) => {
+    const { user_agent, device_type, browser, os, path: visitPath } = req.body;
+    // Basic IP extraction 
+    const ip_address = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+
+    try {
+      // Prevent rapid duplicate logging from the same IP within a 5-minute window
+      const recentVisit = await db.get(
+        "SELECT id FROM visitors WHERE ip_address = ? AND path = ? AND visit_time > datetime('now', '-5 minutes')",
+        [ip_address as string, visitPath]
+      );
+
+      if (!recentVisit) {
+        await db.run(
+          "INSERT INTO visitors (ip_address, user_agent, device_type, browser, os, path) VALUES (?, ?, ?, ?, ?, ?)",
+          [ip_address as string, user_agent || 'unknown', device_type || 'unknown', browser || 'unknown', os || 'unknown', visitPath || '/']
+        );
+      }
+      res.status(200).json({ success: true });
+    } catch (error) {
+      console.error("Tracking Error:", error);
+      // Fail silently to not disrupt the user
+      res.status(500).json({ success: false });
+    }
+  });
+
+  app.get("/api/visitors", authenticate, async (req, res) => {
+    try {
+      const visitors = await db.all("SELECT * FROM visitors ORDER BY visit_time DESC LIMIT 100");
+
+      const stats = await db.get(`
+        SELECT 
+          COUNT(*) as total_visits,
+          COUNT(DISTINCT ip_address) as unique_visitors,
+          SUM(CASE WHEN visit_time > datetime('now', '-24 hours') THEN 1 ELSE 0 END) as visits_today
+        FROM visitors
+      `);
+
+      res.json({ visitors, stats });
+    } catch (error) {
+      console.error("Error fetching visitors:", error);
+      res.status(500).json({ error: "Failed to fetch visitor data" });
     }
   });
 

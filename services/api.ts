@@ -55,6 +55,8 @@ export const createLead = (lead: any) => api.post('/leads', lead);
 export const updateLeadStatus = (id: number, status: string) => api.patch(`/leads/${id}`, { status });
 export const deleteLead = (id: number) => api.delete(`/leads/${id}`);
 
+export const getVisitors = () => api.get('/visitors').then(res => res.data);
+
 export const uploadFile = (file: File) => {
   const formData = new FormData();
   formData.append('file', file);

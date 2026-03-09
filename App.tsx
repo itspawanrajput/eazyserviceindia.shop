@@ -20,6 +20,7 @@ import DashboardHome from './components/admin/DashboardHome';
 import LeadManagement from './components/admin/LeadManagement';
 import ContentManagement from './components/admin/ContentManagement';
 import SecuritySettings from './components/admin/SecuritySettings';
+import Settings from './components/admin/Settings';
 import { VisualBuilderProvider, useVisualBuilder } from './src/context/VisualBuilderContext';
 import AdminToolbar from './src/components/AdminToolbar';
 import EditPanel from './src/components/EditPanel';
@@ -43,7 +44,7 @@ const PublicWebsite: React.FC<{ isEditMode?: boolean }> = ({ isEditMode = false 
             const [selected] = newOrder.splice(index, 1);
             return [selected, ...newOrder];
           });
-          
+
           const target = document.getElementById(hash);
           if (target) {
             target.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -68,23 +69,23 @@ const PublicWebsite: React.FC<{ isEditMode?: boolean }> = ({ isEditMode = false 
     <div className={`min-h-screen bg-slate-100 transition-all duration-300 ${isEditMode ? 'pt-16 pr-80' : ''}`}>
       {isEditMode && <AdminToolbar />}
       {isEditMode && <EditPanel />}
-      
-      <div 
+
+      <div
         className={`mx-auto bg-white shadow-2xl transition-all duration-500 ${isEditMode ? 'my-8 rounded-xl overflow-hidden border border-slate-200' : ''}`}
         style={{ width: isEditMode ? deviceWidths[device] : '100%' }}
       >
         <Header />
         <Hero />
-        
+
         <main id="main-content">
           {orderedServices.map((service, index) => (
-            <ServiceSection 
-              key={service.id} 
-              service={service} 
-              alternate={index % 2 === 0} 
+            <ServiceSection
+              key={service.id}
+              service={service}
+              alternate={index % 2 === 0}
             />
           ))}
-          
+
           <BookingForm />
           <Reviews />
           <FAQ />
@@ -98,7 +99,11 @@ const PublicWebsite: React.FC<{ isEditMode?: boolean }> = ({ isEditMode = false 
   );
 };
 
+import { useVisitorTracking } from './src/hooks/useVisitorTracking';
+
 const App: React.FC = () => {
+  useVisitorTracking();
+
   return (
     <Router>
       <VisualBuilderProvider>
@@ -109,16 +114,16 @@ const App: React.FC = () => {
 
           {/* Admin Routes */}
           <Route path="/admin/login" element={<AdminLogin />} />
-          <Route 
-            path="/edit" 
+          <Route
+            path="/edit"
             element={
               <ProtectedRoute>
                 <PublicWebsite isEditMode={true} />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/admin" 
+          <Route
+            path="/admin"
             element={
               <ProtectedRoute>
                 <AdminLayout />
@@ -130,7 +135,7 @@ const App: React.FC = () => {
             <Route path="leads" element={<LeadManagement />} />
             <Route path="content" element={<ContentManagement />} />
             <Route path="security" element={<SecuritySettings />} />
-            <Route path="settings" element={<div>Settings Page (Coming Soon)</div>} />
+            <Route path="settings" element={<Settings />} />
           </Route>
 
           {/* Fallback */}

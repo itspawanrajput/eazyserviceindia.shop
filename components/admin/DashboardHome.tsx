@@ -1,39 +1,48 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Users, 
-  MessageSquare, 
-  TrendingUp, 
+import {
+  Users,
+  MessageSquare,
+  TrendingUp,
   Clock,
   ArrowUpRight,
   ArrowDownRight,
-  Calendar
+  Calendar,
+  Globe
 } from 'lucide-react';
-import { getLeads } from '../../services/api';
+import { getLeads, getVisitors } from '../../services/api';
 
 const DashboardHome: React.FC = () => {
   const [stats, setStats] = useState({
     totalLeads: 0,
     newLeads: 0,
     conversionRate: 0,
+    uniqueVisitors: 0,
     avgResponseTime: '2.4h'
   });
   const [recentLeads, setRecentLeads] = useState<any[]>([]);
+  const [recentVisitors, setRecentVisitors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const leads = await getLeads();
+        const [leads, visitorsData] = await Promise.all([
+          getLeads(),
+          getVisitors()
+        ]);
+
         const newLeadsCount = leads.filter((l: any) => l.status === 'new').length;
-        
+
         setStats(prev => ({
           ...prev,
           totalLeads: leads.length,
           newLeads: newLeadsCount,
-          conversionRate: leads.length > 0 ? Math.round((leads.filter((l: any) => l.status === 'completed').length / leads.length) * 100) : 0
+          conversionRate: leads.length > 0 ? Math.round((leads.filter((l: any) => l.status === 'completed').length / leads.length) * 100) : 0,
+          uniqueVisitors: visitorsData?.stats?.unique_visitors || 0
         }));
-        
+
         setRecentLeads(leads.slice(0, 5));
+        setRecentVisitors(visitorsData?.visitors?.slice(0, 5) || []);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -71,34 +80,40 @@ const DashboardHome: React.FC = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
-          title="Total Leads" 
-          value={stats.totalLeads} 
-          icon={Users} 
-          trend="up" 
-          trendValue="12%" 
+        <StatCard
+          title="Total Leads"
+          value={stats.totalLeads}
+          icon={Users}
+          trend="up"
+          trendValue="12%"
           color="bg-blue-600"
         />
-        <StatCard 
-          title="New Leads" 
-          value={stats.newLeads} 
-          icon={MessageSquare} 
-          trend="up" 
-          trendValue="5%" 
+        <StatCard
+          title="New Leads"
+          value={stats.newLeads}
+          icon={MessageSquare}
+          trend="up"
+          trendValue="5%"
           color="bg-amber-500"
         />
-        <StatCard 
-          title="Conversion Rate" 
-          value={`${stats.conversionRate}%`} 
-          icon={TrendingUp} 
-          trend="down" 
-          trendValue="2%" 
+        <StatCard
+          title="Unique Visitors"
+          value={stats.uniqueVisitors}
+          icon={Globe}
+          color="bg-purple-600"
+        />
+        <StatCard
+          title="Conversion Rate"
+          value={`${stats.conversionRate}%`}
+          icon={TrendingUp}
+          trend="down"
+          trendValue="2%"
           color="bg-emerald-600"
         />
-        <StatCard 
-          title="Avg. Response" 
-          value={stats.avgResponseTime} 
-          icon={Clock} 
+        <StatCard
+          title="Avg. Response"
+          value={stats.avgResponseTime}
+          icon={Clock}
           color="bg-purple-600"
         />
       </div>
@@ -122,7 +137,7 @@ const DashboardHome: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
-                  [1,2,3].map(i => (
+                  [1, 2, 3].map(i => (
                     <tr key={i} className="animate-pulse">
                       <td colSpan={4} className="px-6 py-4 h-16 bg-slate-50/50"></td>
                     </tr>
@@ -136,11 +151,10 @@ const DashboardHome: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600">{lead.service_type}</td>
                       <td className="px-6 py-4">
-                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                          lead.status === 'new' ? 'bg-amber-100 text-amber-700' :
-                          lead.status === 'contacted' ? 'bg-blue-100 text-blue-700' :
-                          'bg-emerald-100 text-emerald-700'
-                        }`}>
+                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${lead.status === 'new' ? 'bg-amber-100 text-amber-700' :
+                            lead.status === 'contacted' ? 'bg-blue-100 text-blue-700' :
+                              'bg-emerald-100 text-emerald-700'
+                          }`}>
                           {lead.status}
                         </span>
                       </td>
@@ -206,6 +220,63 @@ const DashboardHome: React.FC = () => {
                 </span>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Visitors Table */}
+        <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mt-2">
+          <div className="p-6 border-bottom border-slate-100 flex justify-between items-center bg-slate-50">
+            <div>
+              <h2 className="font-bold text-slate-900 flex items-center gap-2">
+                <Globe className="w-5 h-5 text-purple-600" />
+                Live Website Traffic
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">Real-time visitor data and device tracking</p>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left bg-white">
+              <thead>
+                <tr className="bg-slate-50 border-y border-slate-100/50 text-slate-500 text-xs uppercase tracking-wider">
+                  <th className="px-6 py-4 font-medium">IP Address / Path</th>
+                  <th className="px-6 py-4 font-medium">Device & OS</th>
+                  <th className="px-6 py-4 font-medium">Browser</th>
+                  <th className="px-6 py-4 font-medium text-right">Time</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loading ? (
+                  [1, 2, 3].map(i => (
+                    <tr key={i} className="animate-pulse">
+                      <td colSpan={4} className="px-6 py-4 h-16 bg-slate-50/50"></td>
+                    </tr>
+                  ))
+                ) : recentVisitors.length > 0 ? (
+                  recentVisitors.map((v) => (
+                    <tr key={v.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="font-bold text-slate-800 font-mono text-sm tracking-tight">{v.ip_address}</div>
+                        <div className="text-xs text-blue-500 truncate max-w-[200px] mt-0.5 max-h-4 overflow-hidden" title={v.path}>{v.path}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold px-2 py-1 bg-slate-100 text-slate-600 rounded-md uppercase tracking-wider">{v.device_type}</span>
+                          <span className="text-sm text-slate-600">{v.os}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600 font-medium">{v.browser}</td>
+                      <td className="px-6 py-4 text-sm text-slate-500 text-right">
+                        {new Date(v.visit_time + 'Z').toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true, month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-12 text-center text-slate-500">No visitors logged yet. They will appear here once someone visits the public site.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

@@ -11,7 +11,10 @@ import {
   Mail,
   Phone,
   MapPin,
-  Calendar
+  Calendar,
+  X,
+  MessageSquare,
+  Eye
 } from 'lucide-react';
 
 const LeadManagement: React.FC = () => {
@@ -20,6 +23,7 @@ const LeadManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sourceFilter, setSourceFilter] = useState('all');
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
   useEffect(() => {
     fetchLeads();
@@ -243,8 +247,16 @@ const LeadManagement: React.FC = () => {
                     <td className="p-6">
                       <div className="flex items-center gap-2">
                         <button
+                          onClick={() => setSelectedLead(lead)}
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                          title="View Full Details"
+                        >
+                          <Eye className="w-5 h-5" />
+                        </button>
+                        <button
                           onClick={() => handleDelete(lead.id)}
                           className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                          title="Delete Lead"
                         >
                           <Trash2 className="w-5 h-5" />
                         </button>
@@ -257,6 +269,148 @@ const LeadManagement: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Lead Details Modal */}
+      {selectedLead && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[32px] w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center font-black text-xl">
+                  {selectedLead.name.charAt(0)}
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 leading-tight">{selectedLead.name}</h3>
+                  <p className="text-sm text-slate-500 font-medium">{new Date(selectedLead.created_at).toLocaleString('en-IN')}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedLead(null)}
+                className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 overflow-y-auto space-y-8">
+              {/* Message Block (The most important part) */}
+              {selectedLead.message && (
+                <div className="bg-blue-50/50 rounded-2xl p-6 border border-blue-100">
+                  <h4 className="text-xs font-black text-blue-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4" /> Customer Message
+                  </h4>
+                  <p className="text-slate-700 italic">"{selectedLead.message}"</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Contact Information</h4>
+                  <div className="space-y-4">
+                    <div className="flex gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 shrink-0">
+                        <Phone className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 font-medium">Phone Number</p>
+                        <p className="font-bold text-slate-900 break-all">{selectedLead.phone}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 shrink-0">
+                        <Mail className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 font-medium">Email Address</p>
+                        <p className="font-bold text-slate-900 break-all">{selectedLead.email || 'Not provided'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Service Details</h4>
+                  <div className="space-y-4">
+                    <div className="flex gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 shrink-0">
+                        <span className="font-black text-blue-600">S</span>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 font-medium">Service Requested</p>
+                        <p className="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md w-fit mt-1">{selectedLead.service_type}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 shrink-0">
+                        <MapPin className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 font-medium">Detected Location</p>
+                        <p className="font-bold text-slate-900 mt-1">{selectedLead.location}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Extras */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-100">
+                <div>
+                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Customer Preference</h4>
+                  {(selectedLead.preferred_date || selectedLead.preferred_time) ? (
+                    <div className="flex items-center gap-2 font-bold text-slate-900">
+                      <Calendar className="w-4 h-4 text-blue-600" />
+                      {selectedLead.preferred_date || 'Any Date'} at {selectedLead.preferred_time || 'Any Time'}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-500">ASAP / Flexible</p>
+                  )}
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Acquisition Source</h4>
+                  <span className={`text-xs font-black uppercase tracking-wider px-3 py-1 rounded-lg ${selectedLead.source === 'Hero Form' ? 'bg-purple-100 text-purple-600' :
+                    selectedLead.source === 'Booking Form' ? 'bg-teal-100 text-teal-600' :
+                      selectedLead.source === 'Popup Offer' ? 'bg-orange-100 text-orange-600' :
+                        'bg-slate-100 text-slate-500'
+                    }`}>
+                    {selectedLead.source || 'Unknown'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold text-slate-500">Update Status:</span>
+                <select
+                  value={selectedLead.status}
+                  onChange={(e) => {
+                    handleStatusUpdate(selectedLead.id, e.target.value);
+                    setSelectedLead({ ...selectedLead, status: e.target.value });
+                  }}
+                  className={`text-xs font-black px-4 py-2 rounded-xl uppercase tracking-wider outline-none cursor-pointer border-2 transition-all ${selectedLead.status === 'new' ? 'bg-blue-50 text-blue-600 border-blue-200' :
+                    selectedLead.status === 'contacted' ? 'bg-yellow-50 text-yellow-600 border-yellow-200' :
+                      'bg-green-50 text-green-600 border-green-200'
+                    }`}
+                >
+                  <option value="new">New</option>
+                  <option value="contacted">Contacted</option>
+                  <option value="closed">Closed</option>
+                </select>
+              </div>
+              <button
+                onClick={() => setSelectedLead(null)}
+                className="px-6 py-2.5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
