@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build && tsc server.ts --esModuleInterop --skipLibCheck --moduleResolution node --target es2022 --module es2022 --outDir .",
+    "postinstall": "npm run build",
     "lint": "tsc --noEmit",
     "preview": "vite preview",
     "start": "NODE_ENV=production node server.js"
