@@ -132,7 +132,7 @@ const HeroForm: React.FC = () => {
               </button>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-3">
+            <form id="hero-booking-form" onSubmit={handleSubmit} className="space-y-3">
               {submitStatus === 'error' && (
                 <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-center text-red-100 text-xs font-bold">
                   Something went wrong. Please try again.
@@ -253,6 +253,7 @@ const HeroForm: React.FC = () => {
 
               <Editable id="hero-form-submit" type="button">
                 <button
+                  id="hero-booking-submit-btn"
                   type="submit"
                   disabled={isSubmitting}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl shadow-xl shadow-blue-900/20 transition-all active:scale-[0.98] mt-1 text-sm flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed"

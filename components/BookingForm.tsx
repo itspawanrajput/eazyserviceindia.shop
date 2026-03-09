@@ -159,7 +159,7 @@ const BookingForm: React.FC = () => {
                   </button>
                 </div>
               ) : (
-                <form className="space-y-3.5" onSubmit={handleSubmit}>
+                <form id="main-booking-form" className="space-y-3.5" onSubmit={handleSubmit}>
                   {submitStatus === 'error' && (
                     <div className="bg-red-50 border border-red-100 text-red-600 p-3 rounded-xl text-sm font-bold text-center">
                       Something went wrong. Please try again.
@@ -290,6 +290,7 @@ const BookingForm: React.FC = () => {
 
                   {/* Submit */}
                   <button
+                    id="main-booking-submit-btn"
                     type="submit"
                     disabled={isSubmitting}
                     className="w-full bg-blue-600 text-white py-4 rounded-xl font-extrabold text-sm shadow-lg hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"

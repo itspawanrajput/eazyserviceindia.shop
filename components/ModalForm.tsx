@@ -171,7 +171,7 @@ const ModalForm: React.FC = () => {
                     <p className="text-slate-500 font-medium">Book now and get a <span className="text-blue-600 font-bold">10% Discount</span> on your first service.</p>
                   </div>
 
-                  <form className="space-y-4" onSubmit={handleSubmit}>
+                  <form id="popup-booking-form" className="space-y-4" onSubmit={handleSubmit}>
                     {submitStatus === 'error' && (
                       <div className="bg-red-50 border border-red-100 text-red-600 p-4 rounded-xl text-sm font-bold text-center">
                         Something went wrong. Please try again.
@@ -272,6 +272,7 @@ const ModalForm: React.FC = () => {
                     </div>
 
                     <button
+                      id="popup-booking-submit-btn"
                       type="submit"
                       disabled={isSubmitting}
                       className="w-full bg-blue-600 text-white p-5 rounded-2xl font-black text-lg shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed"
