@@ -41,6 +41,7 @@ export interface Lead {
   source?: string;
   status: string;
   created_at: string;
+  custom_data?: string;
 }
 
 export const getSettings = () => api.get('/settings').then(res => res.data);
@@ -49,6 +50,9 @@ export const updateSettings = (settings: any) => api.post('/settings', { setting
 export const getSections = () => api.get('/sections').then(res => res.data);
 export const saveSection = (section: Partial<Section>) => api.post('/sections', section);
 export const deleteSection = (id: string) => api.delete(`/sections/${id}`);
+
+export const getForms = () => api.get('/forms').then(res => res.data);
+export const saveForm = (id: string, name: string, fields_json: any[]) => api.put(`/forms/${id}`, { name, fields_json });
 
 export const getLeads = () => api.get('/leads').then(res => res.data);
 export const createLead = (lead: any) => api.post('/leads', lead);

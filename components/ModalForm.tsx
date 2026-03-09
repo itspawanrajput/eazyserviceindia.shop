@@ -1,18 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, Send, Clock, MapPin, Loader2, User, Phone, Mail, MessageSquare, ChevronDown, Calendar } from 'lucide-react';
+import { X, Send, Clock, MapPin, Loader2, User, Phone, Mail, MessageSquare, ChevronDown, FormInput } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { createLead, detectLocation } from '../services/api';
+import { createLead, detectLocation, getForms } from '../services/api';
 
 const ModalForm: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    location: '',
-    serviceType: '',
-    message: ''
-  });
+  const [fields, setFields] = useState<any[]>([]);
+  const [formData, setFormData] = useState<Record<string, string>>({});
   const [coords, setCoords] = useState<{ lat: number, lng: number } | null>(null);
   const [isDetecting, setIsDetecting] = useState(false);
   const [attemptCount, setAttemptCount] = useState(0);
@@ -41,6 +35,34 @@ const ModalForm: React.FC = () => {
       clearTimeout(timer);
       document.removeEventListener('mouseleave', handleMouseLeave);
     };
+  }, []);
+
+  useEffect(() => {
+    const loadFields = async () => {
+      try {
+        const allForms = await getForms();
+        const popupForm = allForms.find((f: any) => f.id === 'popup-booking-form');
+        if (popupForm && popupForm.fields_json && popupForm.fields_json.length > 0) {
+          setFields(popupForm.fields_json);
+        } else {
+          setFields([
+            { id: 'name', type: 'text', placeholder: 'Your Name', required: true },
+            { id: 'phone', type: 'tel', placeholder: 'Phone Number', required: true },
+            { id: 'email', type: 'email', placeholder: 'Email Address', required: false },
+            { id: 'location', type: 'text', placeholder: 'Your Location', required: false },
+            { id: 'service_type', type: 'select', options: ['Service & Cleaning', 'Repair & Parts', 'Installation/Uninstalltion', 'Gas Refill'], required: true }
+          ]);
+        }
+      } catch (e) {
+        console.error("Failed to load popup form config", e);
+        setFields([
+          { id: 'name', type: 'text', placeholder: 'Your Name', required: true },
+          { id: 'phone', type: 'tel', placeholder: 'Phone Number', required: true },
+          { id: 'service_type', type: 'select', options: ['Service & Cleaning', 'Repair & Parts', 'Installation/Uninstalltion', 'Gas Refill'], required: true }
+        ]);
+      }
+    };
+    loadFields();
   }, []);
 
   const handleDetectLocation = () => {
@@ -77,11 +99,13 @@ const ModalForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Check for optional fields on first attempt
-    if (attemptCount === 0 && (!formData.email || !formData.location)) {
+    const hasEmailField = fields.some(f => f.id === 'email');
+    const hasLocField = fields.some(f => f.id === 'location');
+
+    if (attemptCount === 0 && ((hasEmailField && !formData.email) || (hasLocField && !formData.location))) {
       setShowWarnings({
-        email: !formData.email,
-        location: !formData.location
+        email: hasEmailField && !formData.email,
+        location: hasLocField && !formData.location
       });
       setAttemptCount(1);
       return;
@@ -91,26 +115,15 @@ const ModalForm: React.FC = () => {
     setSubmitStatus('idle');
 
     try {
-      // Save to DB
-      await createLead({
-        name: formData.name,
-        phone: formData.phone,
-        email: formData.email,
-        location: formData.location,
-        service_type: formData.serviceType,
-        message: formData.message,
-        source: 'Popup Offer'
+      const payload: any = { source: 'Popup Offer' };
+      Object.keys(formData).forEach(key => {
+        payload[key] = formData[key];
       });
 
+      await createLead(payload);
+
       setSubmitStatus('success');
-      setFormData({
-        name: '',
-        phone: '',
-        email: '',
-        location: '',
-        serviceType: '',
-        message: ''
-      });
+      setFormData({});
       setCoords(null);
       setAttemptCount(0);
       setShowWarnings({ email: false, location: false });
@@ -125,6 +138,17 @@ const ModalForm: React.FC = () => {
       setSubmitStatus('error');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const getIconForField = (id: string, type: string) => {
+    switch (id) {
+      case 'name': return <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />;
+      case 'phone': return <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />;
+      case 'email': return <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />;
+      case 'location': return <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />;
+      case 'message': return <MessageSquare className="absolute left-4 top-3.5 w-4 h-4 text-slate-400" />;
+      default: return type !== 'select' ? <FormInput className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" /> : null;
     }
   };
 
@@ -185,91 +209,101 @@ const ModalForm: React.FC = () => {
                     )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="relative">
-                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      {fields.filter(f => f.id === 'name' || f.id === 'phone' || (f.id !== 'email' && f.id !== 'location' && f.type !== 'select' && f.type !== 'textarea')).map((field, index) => (
+                        <div key={field.id} className={index >= 2 ? "sm:col-span-2 relative" : "relative"}>
+                          {getIconForField(field.id, field.type)}
+                          <input
+                            type={field.type}
+                            required={field.required}
+                            className="w-full p-4 pl-12 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-2 focus:ring-blue-500 transition-all text-slate-900"
+                            placeholder={field.placeholder || field.label || field.id}
+                            value={formData[field.id] || ''}
+                            onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    {fields.filter(f => f.id === 'email').map((field) => (
+                      <div key={field.id} className="relative">
+                        {getIconForField(field.id, field.type)}
                         <input
-                          type="text"
-                          required
+                          type={field.type}
                           className="w-full p-4 pl-12 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-2 focus:ring-blue-500 transition-all text-slate-900"
-                          placeholder="Your Name"
-                          value={formData.name}
-                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          placeholder={field.placeholder || "Email Address"}
+                          value={formData[field.id] || ''}
+                          onChange={(e) => {
+                            setFormData({ ...formData, [field.id]: e.target.value });
+                            if (e.target.value) setShowWarnings(prev => ({ ...prev, email: false }));
+                          }}
+                        />
+                        {showWarnings.email && (
+                          <p className="text-yellow-600 text-[10px] mt-1 font-bold leading-tight">
+                            Add your email to receive future discounts and service updates.
+                          </p>
+                        )}
+                      </div>
+                    ))}
+
+                    {fields.filter(f => f.id === 'location').map((field) => (
+                      <div key={field.id} className="relative">
+                        {getIconForField(field.id, field.type)}
+                        <input
+                          type={field.type}
+                          className="w-full p-4 pl-12 pr-24 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-2 focus:ring-blue-500 transition-all text-slate-900"
+                          placeholder={field.placeholder || "Your Location"}
+                          value={formData[field.id] || ''}
+                          onChange={(e) => {
+                            setFormData({ ...formData, [field.id]: e.target.value });
+                            if (e.target.value) setShowWarnings(prev => ({ ...prev, location: false }));
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleDetectLocation}
+                          disabled={isDetecting}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-3 py-2 rounded-xl transition-colors flex items-center gap-1"
+                        >
+                          {isDetecting ? <Loader2 className="w-3 h-3 animate-spin" /> : <MapPin className="w-3 h-3" />}
+                          Detect
+                        </button>
+                        {showWarnings.location && (
+                          <p className="text-yellow-600 text-[10px] mt-1 font-bold leading-tight">
+                            Click the blue Detect button. Location helps our technician reach you faster and accurately.
+                          </p>
+                        )}
+                      </div>
+                    ))}
+
+                    {fields.filter(f => f.type === 'select').map((field) => (
+                      <div key={field.id} className="relative">
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                        <select
+                          required={field.required}
+                          className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-2 focus:ring-blue-500 transition-all appearance-none text-slate-900"
+                          value={formData[field.id] || ''}
+                          onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+                        >
+                          <option value="" disabled>{field.placeholder || `Select ${field.label || field.id}`}</option>
+                          {field.options && field.options.map((opt: string) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+
+                    {fields.filter(f => f.type === 'textarea').map((field) => (
+                      <div key={field.id} className="relative">
+                        {getIconForField(field.id, field.type)}
+                        <textarea
+                          required={field.required}
+                          className="w-full p-4 pl-12 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-2 focus:ring-blue-500 transition-all text-slate-900 resize-none h-24"
+                          placeholder={field.placeholder || field.label || field.id}
+                          value={formData[field.id] || ''}
+                          onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
                         />
                       </div>
-                      <div className="relative">
-                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                          type="tel"
-                          required
-                          className="w-full p-4 pl-12 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-2 focus:ring-blue-500 transition-all text-slate-900"
-                          placeholder="Phone Number"
-                          value={formData.phone}
-                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input
-                        type="email"
-                        className="w-full p-4 pl-12 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-2 focus:ring-blue-500 transition-all text-slate-900"
-                        placeholder="Email Address"
-                        value={formData.email}
-                        onChange={(e) => {
-                          setFormData({ ...formData, email: e.target.value });
-                          if (e.target.value) setShowWarnings(prev => ({ ...prev, email: false }));
-                        }}
-                      />
-                      {showWarnings.email && (
-                        <p className="text-yellow-600 text-[10px] mt-1 font-bold leading-tight">
-                          Add your email to receive future discounts and service updates.
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="relative">
-                      <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input
-                        type="text"
-                        className="w-full p-4 pl-12 pr-24 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-2 focus:ring-blue-500 transition-all text-slate-900"
-                        placeholder="Your Location"
-                        value={formData.location}
-                        onChange={(e) => {
-                          setFormData({ ...formData, location: e.target.value });
-                          if (e.target.value) setShowWarnings(prev => ({ ...prev, location: false }));
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={handleDetectLocation}
-                        disabled={isDetecting}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-3 py-2 rounded-xl transition-colors flex items-center gap-1"
-                      >
-                        {isDetecting ? <Loader2 className="w-3 h-3 animate-spin" /> : <MapPin className="w-3 h-3" />}
-                        Detect
-                      </button>
-                      {showWarnings.location && (
-                        <p className="text-yellow-600 text-[10px] mt-1 font-bold leading-tight">
-                          Click the blue Detect button. Location helps our technician reach you faster and accurately.
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="relative">
-                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                      <select
-                        className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-2 focus:ring-blue-500 transition-all appearance-none text-slate-900"
-                        value={formData.serviceType}
-                        onChange={(e) => setFormData({ ...formData, serviceType: e.target.value })}
-                      >
-                        <option value="" disabled>Select Service Type</option>
-                        <option value="Service & Cleaning">Service & Cleaning</option>
-                        <option value="Repair & Parts">Repair & Parts</option>
-                        <option value="Installation/Uninstalltion">Installation/Uninstalltion</option>
-                        <option value="Gas Refill">Gas Refill</option>
-                      </select>
-                    </div>
+                    ))}
 
                     <button
                       id="popup-booking-submit-btn"

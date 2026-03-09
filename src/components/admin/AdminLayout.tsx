@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, Outlet, useLocation } from 'react-router-dom';
 import { logout, getMe } from '../../services/api';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Settings as SettingsIcon, 
-  FileText, 
-  LogOut, 
-  Menu, 
+import {
+  LayoutDashboard,
+  Users,
+  Settings as SettingsIcon,
+  FileText,
+  LogOut,
+  Menu,
   X,
   Bell,
-  Search
+  Search,
+  FormInput
 } from 'lucide-react';
 
 const AdminLayout: React.FC = () => {
@@ -32,6 +33,7 @@ const AdminLayout: React.FC = () => {
     { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard' },
     { icon: Users, label: 'Leads', path: '/admin/leads' },
     { icon: FileText, label: 'Content', path: '/admin/content' },
+    { icon: FormInput, label: 'Forms', path: '/admin/forms' },
     { icon: SettingsIcon, label: 'Settings', path: '/admin/settings' },
   ];
 

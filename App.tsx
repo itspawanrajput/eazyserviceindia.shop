@@ -19,6 +19,7 @@ import AdminLayout from './components/admin/AdminLayout';
 import DashboardHome from './components/admin/DashboardHome';
 import LeadManagement from './components/admin/LeadManagement';
 import ContentManagement from './components/admin/ContentManagement';
+import FormBuilder from './components/admin/FormBuilder';
 import SecuritySettings from './components/admin/SecuritySettings';
 import Settings from './components/admin/Settings';
 import { VisualBuilderProvider, useVisualBuilder } from './src/context/VisualBuilderContext';
@@ -134,6 +135,7 @@ const App: React.FC = () => {
             <Route path="dashboard" element={<DashboardHome />} />
             <Route path="leads" element={<LeadManagement />} />
             <Route path="content" element={<ContentManagement />} />
+            <Route path="forms" element={<FormBuilder />} />
             <Route path="security" element={<SecuritySettings />} />
             <Route path="settings" element={<Settings />} />
           </Route>

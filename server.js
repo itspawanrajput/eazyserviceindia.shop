@@ -78,6 +78,13 @@ async function startServer() {
       path TEXT,
       visit_time DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS forms (
+      id TEXT PRIMARY KEY,
+      name TEXT,
+      fields_json TEXT,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
     // Initialize page state if empty
     const pageState = await db.get("SELECT * FROM page_state WHERE id = 'home'");
@@ -98,6 +105,11 @@ async function startServer() {
     const hasSource = tableInfo.some(col => col.name === 'source');
     if (!hasSource) {
         await db.exec("ALTER TABLE leads ADD COLUMN source TEXT DEFAULT 'unknown'");
+    }
+    // Migration: Add custom_data column to leads for dynamic form builder
+    const hasCustomData = tableInfo.some(col => col.name === 'custom_data');
+    if (!hasCustomData) {
+        await db.exec("ALTER TABLE leads ADD COLUMN custom_data TEXT DEFAULT '{}'");
     }
     // Admin User Seeding Configuration
     const adminUsername = process.env.ADMIN_USER || "admin";
@@ -252,7 +264,31 @@ async function startServer() {
     });
     app.delete("/api/sections/:id", authenticate, async (req, res) => {
         await db.run("DELETE FROM sections WHERE id = ?", [req.params.id]);
+        await db.run("DELETE FROM sections WHERE id = ?", [req.params.id]);
         res.json({ message: "Section deleted" });
+    });
+    // Forms Builder
+    app.get("/api/forms", async (req, res) => {
+        try {
+            const forms = await db.all("SELECT * FROM forms");
+            res.json(forms.map(f => ({ ...f, fields_json: JSON.parse(f.fields_json || "[]") })));
+        }
+        catch (err) {
+            console.error("Error fetching forms:", err);
+            res.status(500).json({ error: "Failed to fetch forms" });
+        }
+    });
+    app.put("/api/forms/:id", authenticate, async (req, res) => {
+        try {
+            const { name, fields_json } = req.body;
+            const { id } = req.params;
+            await db.run("INSERT OR REPLACE INTO forms (id, name, fields_json, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)", [id, name || id, JSON.stringify(fields_json || [])]);
+            res.json({ message: "Form updated successfully" });
+        }
+        catch (err) {
+            console.error("Error updating form:", err);
+            res.status(500).json({ error: "Failed to save form" });
+        }
     });
     // Leads
     app.get("/api/leads", authenticate, async (req, res) => {
@@ -260,8 +296,10 @@ async function startServer() {
         res.json(leads);
     });
     app.post("/api/leads", leadsLimiter, async (req, res) => {
-        const { name, phone, email, location, service_type, message, preferred_date, preferred_time, source } = req.body;
-        await db.run("INSERT INTO leads (name, phone, email, location, service_type, message, preferred_date, preferred_time, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", [name, phone, email, location, service_type, message, preferred_date, preferred_time, source || 'unknown']);
+        const { name, phone, email, location, service_type, message, preferred_date, preferred_time, source, ...rest } = req.body;
+        // Store all unpredictable ad-hoc dynamic fields as a JSON string
+        const custom_data = Object.keys(rest).length > 0 ? JSON.stringify(rest) : "{}";
+        await db.run("INSERT INTO leads (name, phone, email, location, service_type, message, preferred_date, preferred_time, source, custom_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [name, phone, email, location, service_type, message, preferred_date, preferred_time, source || 'unknown', custom_data]);
         res.json({ message: "Lead saved" });
     });
     app.patch("/api/leads/:id", authenticate, async (req, res) => {

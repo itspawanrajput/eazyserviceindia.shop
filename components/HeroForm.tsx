@@ -1,20 +1,11 @@
-
-import React, { useState } from 'react';
-import { MapPin, Phone, User, MessageSquare, ChevronDown, Loader2, Mail } from 'lucide-react';
-import { SERVICES } from '../constants';
-import { createLead, detectLocation } from '../services/api';
-
+import React, { useState, useEffect } from 'react';
+import { MapPin, Phone, User, MessageSquare, ChevronDown, Loader2, Mail, FormInput } from 'lucide-react';
+import { createLead, detectLocation, getForms } from '../services/api';
 import Editable from '../src/components/Editable';
 
 const HeroForm: React.FC = () => {
-  const [formData, setFormData] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    location: '',
-    serviceType: '',
-    message: ''
-  });
+  const [fields, setFields] = useState<any[]>([]);
+  const [formData, setFormData] = useState<Record<string, string>>({});
   const [coords, setCoords] = useState<{ lat: number, lng: number } | null>(null);
   const [isDetecting, setIsDetecting] = useState(false);
   const [attemptCount, setAttemptCount] = useState(0);
@@ -22,6 +13,38 @@ const HeroForm: React.FC = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+
+  useEffect(() => {
+    // Load dynamic form fields
+    const loadFields = async () => {
+      try {
+        const allForms = await getForms();
+        const heroForm = allForms.find((f: any) => f.id === 'hero-booking-form');
+        if (heroForm && heroForm.fields_json && heroForm.fields_json.length > 0) {
+          setFields(heroForm.fields_json);
+        } else {
+          // Fallback to default fields
+          setFields([
+            { id: 'name', type: 'text', placeholder: 'Your Name', required: true },
+            { id: 'phone', type: 'tel', placeholder: 'Phone Number', required: true },
+            { id: 'email', type: 'email', placeholder: 'Email Address', required: false },
+            { id: 'location', type: 'text', placeholder: 'Location / Area', required: false },
+            { id: 'service_type', type: 'select', options: ['Service & Cleaning', 'Repair & Parts', 'Installation/Uninstalltion', 'Gas Refill'], required: true },
+            { id: 'message', type: 'textarea', placeholder: 'Describe your problem here......', required: false }
+          ]);
+        }
+      } catch (e) {
+        console.error("Failed to load hero form config", e);
+        // Fallback
+        setFields([
+          { id: 'name', type: 'text', placeholder: 'Your Name', required: true },
+          { id: 'phone', type: 'tel', placeholder: 'Phone Number', required: true },
+          { id: 'service_type', type: 'select', options: ['Service & Cleaning', 'Repair & Parts', 'Installation/Uninstalltion', 'Gas Refill'], required: true }
+        ]);
+      }
+    };
+    loadFields();
+  }, []);
 
   const handleDetectLocation = () => {
     setIsDetecting(true);
@@ -57,11 +80,14 @@ const HeroForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Check for optional fields on first attempt
-    if (attemptCount === 0 && (!formData.email || !formData.location)) {
+    // Check for optional fields on first attempt (if they exist in config)
+    const hasEmailField = fields.some(f => f.id === 'email');
+    const hasLocField = fields.some(f => f.id === 'location');
+
+    if (attemptCount === 0 && ((hasEmailField && !formData.email) || (hasLocField && !formData.location))) {
       setShowWarnings({
-        email: !formData.email,
-        location: !formData.location
+        email: hasEmailField && !formData.email,
+        location: hasLocField && !formData.location
       });
       setAttemptCount(1);
       return;
@@ -71,26 +97,16 @@ const HeroForm: React.FC = () => {
     setSubmitStatus('idle');
 
     try {
-      // Save to DB
-      await createLead({
-        name: formData.name,
-        phone: formData.phone,
-        email: formData.email,
-        location: formData.location,
-        service_type: formData.serviceType,
-        message: formData.message,
-        source: 'Hero Form'
+      // Map form data dynamically
+      const payload: any = { source: 'Hero Form' };
+      Object.keys(formData).forEach(key => {
+        payload[key] = formData[key];
       });
 
+      await createLead(payload);
+
       setSubmitStatus('success');
-      setFormData({
-        name: '',
-        phone: '',
-        email: '',
-        location: '',
-        serviceType: '',
-        message: ''
-      });
+      setFormData({});
       setCoords(null);
       setAttemptCount(0);
       setShowWarnings({ email: false, location: false });
@@ -99,6 +115,17 @@ const HeroForm: React.FC = () => {
       setSubmitStatus('error');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const getIconForField = (id: string, type: string) => {
+    switch (id) {
+      case 'name': return <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />;
+      case 'phone': return <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />;
+      case 'email': return <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />;
+      case 'location': return <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />;
+      case 'message': return <MessageSquare className="absolute left-4 top-3 w-4 h-4 text-white/60" />;
+      default: return type !== 'select' ? <FormInput className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" /> : null;
     }
   };
 
@@ -146,110 +173,82 @@ const HeroForm: React.FC = () => {
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {/* Name */}
-                <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
-                  <input
-                    type="text"
-                    placeholder="Your Name"
-                    required
-                    className="w-full bg-white/10 border border-white/20 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  />
-                </div>
+                {fields.filter(f => f.type !== 'textarea' && f.type !== 'select').map((field) => (
+                  <div key={field.id} className="relative">
+                    {getIconForField(field.id, field.type)}
+                    <input
+                      type={field.type}
+                      placeholder={field.placeholder || field.label}
+                      required={field.required}
+                      className="w-full bg-white/10 border border-white/20 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                      value={formData[field.id] || ''}
+                      onChange={(e) => {
+                        setFormData({ ...formData, [field.id]: e.target.value });
+                        if (field.id === 'email' && e.target.value) setShowWarnings(prev => ({ ...prev, email: false }));
+                        if (field.id === 'location' && e.target.value) setShowWarnings(prev => ({ ...prev, location: false }));
+                      }}
+                    />
 
-                {/* Phone */}
-                <div className="relative">
-                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
-                  <input
-                    type="tel"
-                    placeholder="Phone Number"
-                    required
-                    className="w-full bg-white/10 border border-white/20 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  />
-                </div>
+                    {/* Location Detect Button */}
+                    {field.id === 'location' && (
+                      <button
+                        type="button"
+                        onClick={handleDetectLocation}
+                        disabled={isDetecting}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white text-[9px] font-bold px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+                      >
+                        {isDetecting ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <MapPin className="w-2.5 h-2.5" />}
+                        Detect
+                      </button>
+                    )}
 
-                {/* Email */}
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
-                  <input
-                    type="email"
-                    placeholder="Email Address"
-                    className="w-full bg-white/10 border border-white/20 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                    value={formData.email}
-                    onChange={(e) => {
-                      setFormData({ ...formData, email: e.target.value });
-                      if (e.target.value) setShowWarnings(prev => ({ ...prev, email: false }));
-                    }}
-                  />
-                  {showWarnings.email && (
-                    <p className="text-yellow-400 text-[9px] mt-1 font-bold leading-tight">
-                      Add your email to receive future discounts and service updates.
-                    </p>
-                  )}
-                </div>
+                    {/* Warnings */}
+                    {field.id === 'email' && showWarnings.email && (
+                      <p className="text-yellow-400 text-[9px] mt-1 font-bold leading-tight">
+                        Add your email to receive future discounts and service updates.
+                      </p>
+                    )}
+                    {field.id === 'location' && showWarnings.location && (
+                      <p className="text-yellow-400 text-[9px] mt-1 font-bold leading-tight">
+                        Click the blue Detect button. Location helps our technician reach you faster.
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
 
-                {/* Location with Detect Option */}
-                <div className="relative">
-                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
-                  <input
-                    type="text"
-                    placeholder="Location / Area"
-                    className="w-full bg-white/10 border border-white/20 rounded-xl py-2.5 pl-10 pr-24 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                    value={formData.location}
-                    onChange={(e) => {
-                      setFormData({ ...formData, location: e.target.value });
-                      if (e.target.value) setShowWarnings(prev => ({ ...prev, location: false }));
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleDetectLocation}
-                    disabled={isDetecting}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white text-[9px] font-bold px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+              {/* Select Fields */}
+              {fields.filter(f => f.type === 'select').map((field) => (
+                <div key={field.id} className="relative">
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60 pointer-events-none" />
+                  <select
+                    required={field.required}
+                    className="w-full bg-white/10 border border-white/20 rounded-xl py-2.5 pl-4 pr-10 text-sm text-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                    value={formData[field.id] || ''}
+                    onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
                   >
-                    {isDetecting ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <MapPin className="w-2.5 h-2.5" />}
-                    Detect
-                  </button>
-                  {showWarnings.location && (
-                    <p className="text-yellow-400 text-[9px] mt-1 font-bold leading-tight">
-                      Click the blue Detect button. Location helps our technician reach you faster and accurately.
-                    </p>
-                  )}
+                    <option value="" disabled className="bg-slate-900">{field.placeholder || `Select ${field.label}`}</option>
+                    {field.options && field.options.map((opt: string) => (
+                      <option key={opt} value={opt} className="bg-slate-900">{opt}</option>
+                    ))}
+                  </select>
                 </div>
-              </div>
+              ))}
 
-              {/* Service Type */}
-              <div className="relative">
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60 pointer-events-none" />
-                <select
-                  className="w-full bg-white/10 border border-white/20 rounded-xl py-2.5 pl-4 pr-10 text-sm text-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                  value={formData.serviceType}
-                  onChange={(e) => setFormData({ ...formData, serviceType: e.target.value })}
-                >
-                  <option value="" disabled className="bg-slate-900">Select Service Type</option>
-                  <option value="Service & Cleaning" className="bg-slate-900">Service & Cleaning</option>
-                  <option value="Repair & Parts" className="bg-slate-900">Repair & Parts</option>
-                  <option value="Installation/Uninstalltion" className="bg-slate-900">Installation/Uninstalltion</option>
-                  <option value="Gas Refill" className="bg-slate-900">Gas Refill</option>
-                </select>
-              </div>
-
-              {/* Message */}
-              <div className="relative">
-                <MessageSquare className="absolute left-4 top-3 w-4 h-4 text-white/60" />
-                <textarea
-                  placeholder="Describe your problem here......"
-                  rows={4}
-                  className="w-full bg-white/10 border border-white/20 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none"
-                  value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                />
-                <p className="text-[9px] text-white/40 mt-0.5 ml-1">Describe your problem little bit here!</p>
-              </div>
+              {/* Textarea Fields */}
+              {fields.filter(f => f.type === 'textarea').map((field) => (
+                <div key={field.id} className="relative">
+                  {getIconForField(field.id, field.type)}
+                  <textarea
+                    placeholder={field.placeholder || field.label}
+                    required={field.required}
+                    rows={4}
+                    className="w-full bg-white/10 border border-white/20 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none"
+                    value={formData[field.id] || ''}
+                    onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+                  />
+                </div>
+              ))}
 
               <Editable id="hero-form-submit" type="button">
                 <button

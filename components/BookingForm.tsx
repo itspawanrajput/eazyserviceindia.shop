@@ -1,24 +1,46 @@
-
-import React, { useState } from 'react';
-import { Send, MapPin, Loader2, User, Phone, Mail, MessageSquare, ChevronDown } from 'lucide-react';
-import { createLead, detectLocation } from '../services/api';
+import React, { useState, useEffect } from 'react';
+import { Send, MapPin, Loader2, User, Phone, Mail, MessageSquare, ChevronDown, FormInput } from 'lucide-react';
+import { createLead, detectLocation, getForms } from '../services/api';
 import Editable from '../src/components/Editable';
 
 const BookingForm: React.FC = () => {
-  const [formData, setFormData] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    location: '',
-    serviceType: '',
-    message: ''
-  });
+  const [fields, setFields] = useState<any[]>([]);
+  const [formData, setFormData] = useState<Record<string, string>>({});
   const [coords, setCoords] = useState<{ lat: number, lng: number } | null>(null);
   const [isDetecting, setIsDetecting] = useState(false);
   const [attemptCount, setAttemptCount] = useState(0);
   const [showWarnings, setShowWarnings] = useState({ email: false, location: false });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+
+  useEffect(() => {
+    const loadFields = async () => {
+      try {
+        const allForms = await getForms();
+        const mainForm = allForms.find((f: any) => f.id === 'main-booking-form');
+        if (mainForm && mainForm.fields_json && mainForm.fields_json.length > 0) {
+          setFields(mainForm.fields_json);
+        } else {
+          setFields([
+            { id: 'name', label: 'Full Name', type: 'text', placeholder: 'Enter name', required: true },
+            { id: 'phone', label: 'Phone Number', type: 'tel', placeholder: 'Enter number', required: true },
+            { id: 'email', label: 'Email Address', type: 'email', placeholder: 'Enter email', required: false },
+            { id: 'location', label: 'Location / Area', type: 'text', placeholder: 'Location', required: false },
+            { id: 'service_type', label: 'Service Type', type: 'select', options: ['Service & Cleaning', 'Repair & Parts', 'Installation/Uninstallation', 'Gas Refill'], required: true },
+            { id: 'message', label: 'Message (Optional)', type: 'textarea', placeholder: 'Describe your problem here......', required: false }
+          ]);
+        }
+      } catch (e) {
+        console.error("Failed to load main form config", e);
+        setFields([
+          { id: 'name', label: 'Full Name', type: 'text', placeholder: 'Enter name', required: true },
+          { id: 'phone', label: 'Phone Number', type: 'tel', placeholder: 'Enter number', required: true },
+          { id: 'service_type', label: 'Service Type', type: 'select', options: ['Service & Cleaning', 'Repair & Parts', 'Installation/Uninstallation', 'Gas Refill'], required: true }
+        ]);
+      }
+    };
+    loadFields();
+  }, []);
 
   const handleDetectLocation = () => {
     setIsDetecting(true);
@@ -52,25 +74,28 @@ const BookingForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (attemptCount === 0 && (!formData.email || !formData.location)) {
-      setShowWarnings({ email: !formData.email, location: !formData.location });
+    const hasEmailField = fields.some(f => f.id === 'email');
+    const hasLocField = fields.some(f => f.id === 'location');
+
+    if (attemptCount === 0 && ((hasEmailField && !formData.email) || (hasLocField && !formData.location))) {
+      setShowWarnings({
+        email: hasEmailField && !formData.email,
+        location: hasLocField && !formData.location
+      });
       setAttemptCount(1);
       return;
     }
     setIsSubmitting(true);
     setSubmitStatus('idle');
     try {
-      await createLead({
-        name: formData.name,
-        phone: formData.phone,
-        email: formData.email,
-        location: formData.location,
-        service_type: formData.serviceType,
-        message: formData.message,
-        source: 'Booking Form'
+      const payload: any = { source: 'Booking Form' };
+      Object.keys(formData).forEach(key => {
+        payload[key] = formData[key];
       });
+
+      await createLead(payload);
       setSubmitStatus('success');
-      setFormData({ name: '', phone: '', email: '', location: '', serviceType: '', message: '' });
+      setFormData({});
       setCoords(null);
       setAttemptCount(0);
       setShowWarnings({ email: false, location: false });
@@ -82,12 +107,20 @@ const BookingForm: React.FC = () => {
     }
   };
 
+  const getIconForField = (id: string, type: string) => {
+    switch (id) {
+      case 'name': return <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />;
+      case 'phone': return <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />;
+      case 'email': return <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />;
+      case 'location': return <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />;
+      case 'message': return <MessageSquare className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />;
+      default: return type !== 'select' ? <FormInput className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" /> : null;
+    }
+  };
+
   return (
     <Editable id="booking-section" type="section">
-      {/* Section with blurred background image */}
       <section id="booking-form" className="relative py-14 md:py-20 overflow-hidden">
-
-        {/* Background image — blurred/dimmed */}
         <div className="absolute inset-0 z-0">
           <img
             src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=2000&auto=format&fit=crop"
@@ -98,11 +131,8 @@ const BookingForm: React.FC = () => {
           <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" />
         </div>
 
-        {/* Centered white card */}
         <div className="relative z-10 max-w-5xl mx-auto px-4">
           <div className="bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col lg:flex-row">
-
-            {/* ── LEFT: Image panel ── */}
             <div className="relative w-full lg:w-[400px] lg:flex-shrink-0 min-h-[280px] lg:min-h-[560px]">
               <Editable id="booking-panel-image" type="image">
                 <img
@@ -112,9 +142,7 @@ const BookingForm: React.FC = () => {
                   referrerPolicy="no-referrer"
                 />
               </Editable>
-              {/* Bottom gradient overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-              {/* Stats bar at bottom */}
               <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
                 <div className="flex items-end justify-around gap-2">
                   <div className="text-center">
@@ -133,7 +161,6 @@ const BookingForm: React.FC = () => {
               </div>
             </div>
 
-            {/* ── RIGHT: Form panel ── */}
             <div className="flex-1 p-7 md:p-9 bg-white">
               <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-1.5">Booking</p>
               <Editable id="booking-title" type="text">
@@ -171,124 +198,85 @@ const BookingForm: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Row 1: Name + Phone */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Full Name</label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                          type="text"
-                          required
-                          className="w-full py-3 pl-10 pr-3 rounded-xl bg-slate-100 border-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
-                          placeholder="Enter name"
-                          value={formData.name}
-                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        />
+                    {fields.filter(f => f.type !== 'textarea' && f.type !== 'select').map((field) => (
+                      <div key={field.id} className={field.id === 'email' || field.id === 'location' || field.type === 'text' || field.type === 'tel' ? '' : 'sm:col-span-2'}>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">{field.label || field.id}</label>
+                        <div className="relative">
+                          {getIconForField(field.id, field.type)}
+                          <input
+                            type={field.type}
+                            required={field.required}
+                            className={`w-full py-3 pl-10 ${field.id === 'location' ? 'pr-20' : 'pr-3'} rounded-xl bg-slate-100 border-none focus:ring-2 focus:ring-blue-500 transition-all text-sm`}
+                            placeholder={field.placeholder || `Enter ${field.label || field.id}`}
+                            value={formData[field.id] || ''}
+                            onChange={(e) => {
+                              setFormData({ ...formData, [field.id]: e.target.value });
+                              if (field.id === 'email' && e.target.value) setShowWarnings(prev => ({ ...prev, email: false }));
+                              if (field.id === 'location' && e.target.value) setShowWarnings(prev => ({ ...prev, location: false }));
+                            }}
+                          />
+
+                          {field.id === 'location' && (
+                            <button
+                              type="button"
+                              onClick={handleDetectLocation}
+                              disabled={isDetecting}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+                            >
+                              {isDetecting ? <Loader2 className="w-3 h-3 animate-spin" /> : <MapPin className="w-3 h-3" />}
+                              Detect
+                            </button>
+                          )}
+                        </div>
+
+                        {field.id === 'email' && showWarnings.email && (
+                          <p className="text-yellow-600 text-[10px] mt-1 font-bold leading-tight">Add email to receive future discounts.</p>
+                        )}
+                        {field.id === 'location' && showWarnings.location && (
+                          <p className="text-yellow-600 text-[10px] mt-1 font-bold leading-tight">Click Detect so our technician reaches you faster.</p>
+                        )}
                       </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Phone Number</label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                          type="tel"
-                          required
-                          className="w-full py-3 pl-10 pr-3 rounded-xl bg-slate-100 border-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
-                          placeholder="Enter number"
-                          value={formData.phone}
-                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        />
-                      </div>
-                    </div>
+                    ))}
                   </div>
 
-                  {/* Row 2: Email + Location */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Email Address</label>
+                  {fields.filter(f => f.type === 'select').map((field) => (
+                    <div key={field.id}>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">{field.label || field.id}</label>
                       <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                          type="email"
-                          className="w-full py-3 pl-10 pr-3 rounded-xl bg-slate-100 border-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
-                          placeholder="Enter email"
-                          value={formData.email}
-                          onChange={(e) => {
-                            setFormData({ ...formData, email: e.target.value });
-                            if (e.target.value) setShowWarnings(prev => ({ ...prev, email: false }));
-                          }}
-                        />
-                      </div>
-                      {showWarnings.email && (
-                        <p className="text-yellow-600 text-[10px] mt-1 font-bold leading-tight">Add email to receive future discounts.</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Location / Area</label>
-                      <div className="relative">
-                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                          type="text"
-                          className="w-full py-3 pl-10 pr-20 rounded-xl bg-slate-100 border-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
-                          placeholder="Location"
-                          value={formData.location}
-                          onChange={(e) => {
-                            setFormData({ ...formData, location: e.target.value });
-                            if (e.target.value) setShowWarnings(prev => ({ ...prev, location: false }));
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={handleDetectLocation}
-                          disabled={isDetecting}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                        <select
+                          required={field.required}
+                          className="w-full py-3 px-4 rounded-xl bg-slate-100 border-none focus:ring-2 focus:ring-blue-500 transition-all appearance-none text-sm"
+                          value={formData[field.id] || ''}
+                          onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
                         >
-                          {isDetecting ? <Loader2 className="w-3 h-3 animate-spin" /> : <MapPin className="w-3 h-3" />}
-                          Detect
-                        </button>
+                          <option value="" disabled>{field.placeholder || `Select ${field.label || field.id}`}</option>
+                          {field.options && field.options.map((opt: string) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
                       </div>
-                      {showWarnings.location && (
-                        <p className="text-yellow-600 text-[10px] mt-1 font-bold leading-tight">Click Detect so our technician reaches you faster.</p>
-                      )}
                     </div>
-                  </div>
+                  ))}
 
-                  {/* Service Type */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Service Type</label>
-                    <div className="relative">
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                      <select
-                        className="w-full py-3 px-4 rounded-xl bg-slate-100 border-none focus:ring-2 focus:ring-blue-500 transition-all appearance-none text-sm"
-                        value={formData.serviceType}
-                        onChange={(e) => setFormData({ ...formData, serviceType: e.target.value })}
-                      >
-                        <option value="" disabled>Select Service Type</option>
-                        <option value="Service & Cleaning">Service & Cleaning</option>
-                        <option value="Repair & Parts">Repair & Parts</option>
-                        <option value="Installation/Uninstallation">Installation/Uninstallation</option>
-                        <option value="Gas Refill">Gas Refill</option>
-                      </select>
+                  {fields.filter(f => f.type === 'textarea').map((field) => (
+                    <div key={field.id}>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">{field.label || field.id}</label>
+                      <div className="relative">
+                        {getIconForField(field.id, field.type)}
+                        <textarea
+                          required={field.required}
+                          className="w-full py-3 pl-10 pr-3 rounded-xl bg-slate-100 border-none focus:ring-2 focus:ring-blue-500 transition-all h-24 resize-none text-sm"
+                          placeholder={field.placeholder || `Enter ${field.label || field.id}`}
+                          value={formData[field.id] || ''}
+                          onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1 ml-1">{field.placeholder || ''}</p>
+                      </div>
                     </div>
-                  </div>
+                  ))}
 
-                  {/* Message */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Message (Optional)</label>
-                    <div className="relative">
-                      <MessageSquare className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
-                      <textarea
-                        className="w-full py-3 pl-10 pr-3 rounded-xl bg-slate-100 border-none focus:ring-2 focus:ring-blue-500 transition-all h-24 resize-none text-sm"
-                        placeholder="Describe your problem here......"
-                        value={formData.message}
-                        onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                      />
-                      <p className="text-[10px] text-slate-400 mt-1 ml-1">Describe your problem little bit here!</p>
-                    </div>
-                  </div>
-
-                  {/* Submit */}
                   <button
                     id="main-booking-submit-btn"
                     type="submit"
@@ -307,8 +295,6 @@ const BookingForm: React.FC = () => {
                 </form>
               )}
             </div>
-            {/* end form panel */}
-
           </div>
         </div>
       </section>

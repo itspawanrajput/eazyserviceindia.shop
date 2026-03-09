@@ -355,6 +355,33 @@ const LeadManagement: React.FC = () => {
                 </div>
               </div>
 
+              {/* Dynamic Custom Fields (From Form Builder) */}
+              {selectedLead.custom_data && selectedLead.custom_data !== "{}" && (() => {
+                try {
+                  const customFields = JSON.parse(selectedLead.custom_data);
+                  const keys = Object.keys(customFields);
+                  if (keys.length === 0) return null;
+
+                  return (
+                    <div>
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Additional Information</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {keys.map(key => (
+                          <div key={key} className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                              {key.replace(/_/g, ' ')}
+                            </p>
+                            <p className="font-bold text-slate-900 break-words">{customFields[key] || '-'}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                } catch (e) {
+                  return null;
+                }
+              })()}
+
               {/* Extras */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-100">
                 <div>
