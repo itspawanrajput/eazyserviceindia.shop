@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { Phone, Mail, MapPin, Clock, Facebook, Instagram, ArrowUpRight, Zap } from 'lucide-react';
-import { SERVICE_AREAS } from '../constants';
 import Editable from '../src/components/Editable';
 
 const Footer: React.FC = () => {
@@ -135,19 +134,28 @@ const Footer: React.FC = () => {
 
           {/* Service Areas */}
           <div>
-            <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-6">Service Areas</h4>
+            <Editable id="footer-areas-title" type="text">
+              <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-6">Service Areas</h4>
+            </Editable>
             <div className="flex flex-wrap gap-2">
-              {SERVICE_AREAS.map(area => (
-                <span
-                  key={area}
-                  className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs font-semibold text-slate-300 hover:bg-blue-500/10 hover:border-blue-500/30 hover:text-blue-300 transition-all duration-300 cursor-default"
-                >
-                  {area}
-                </span>
+              {[
+                { id: 'footer-area-1', label: 'Delhi' },
+                { id: 'footer-area-2', label: 'Gurgaon' },
+                { id: 'footer-area-3', label: 'Noida' },
+                { id: 'footer-area-4', label: 'Faridabad' },
+                { id: 'footer-area-5', label: 'Ghaziabad' },
+              ].map(area => (
+                <Editable key={area.id} id={area.id} type="text">
+                  <span className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs font-semibold text-slate-300 hover:bg-blue-500/10 hover:border-blue-500/30 hover:text-blue-300 transition-all duration-300 cursor-default">
+                    {area.label}
+                  </span>
+                </Editable>
               ))}
-              <span className="px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs font-bold text-blue-400">
-                Across Delhi-NCR
-              </span>
+              <Editable id="footer-area-highlight" type="text">
+                <span className="px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs font-bold text-blue-400">
+                  Across Delhi-NCR
+                </span>
+              </Editable>
             </div>
           </div>
 
