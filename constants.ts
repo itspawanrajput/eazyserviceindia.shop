@@ -132,6 +132,6 @@ export const PLACEHOLDERS = [
   "AC Gas Refilling Service"
 ];
 
-export const GOA_AREAS = [
+export const SERVICE_AREAS = [
   "Delhi", "Gurgaon", "Noida", "Faridabad", "Ghaziabad"
 ];
