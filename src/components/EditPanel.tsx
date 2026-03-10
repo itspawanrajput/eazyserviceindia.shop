@@ -1,7 +1,24 @@
 import React, { useRef, useState } from 'react';
 import { useVisualBuilder } from '../context/VisualBuilderContext';
-import { X, Type, Palette, Link, Image as ImageIcon, Layout, Smartphone, Monitor, Tablet, Settings, Upload, Share2, Video } from 'lucide-react';
+import { X, Type, Palette, Link, Image as ImageIcon, Layout, Smartphone, Monitor, Tablet, Settings, Upload, Share2, Video, ChevronDown } from 'lucide-react';
 import { uploadFile } from '../../services/api';
+
+const LINK_OPTIONS = [
+  { label: '── Page Sections ──', value: '', disabled: true },
+  { label: 'Hero', value: '#hero' },
+  { label: 'AC Repair', value: '#repair' },
+  { label: 'AC Cleaning', value: '#cleaning' },
+  { label: 'AC Installation', value: '#install' },
+  { label: 'AC Gas Charging', value: '#gas' },
+  { label: 'Booking Form', value: '#booking-form' },
+  { label: 'Reviews', value: '#reviews' },
+  { label: 'FAQ', value: '#faq' },
+  { label: '── External Links ──', value: '', disabled: true },
+  { label: 'WhatsApp Chat', value: 'https://wa.link/50lzkv' },
+  { label: 'Phone Call', value: 'tel:+919911481331' },
+  { label: '── Other ──', value: '', disabled: true },
+  { label: 'Custom URL...', value: '__custom__' },
+];
 
 const EditPanel: React.FC = () => {
   const { selectedElementId, setSelectedElementId, selectedElementType, pageData, setPageData, device } = useVisualBuilder();
@@ -170,13 +187,28 @@ const EditPanel: React.FC = () => {
 
             <div>
               <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Link URL</label>
-              <input
-                type="text"
-                className="w-full p-2 bg-slate-50 border border-slate-100 rounded-lg text-sm font-bold"
-                value={currentStyles.link || ''}
-                onChange={(e) => updateStyle('link', e.target.value)}
-                placeholder="https://wa.link/... or tel:+91..."
-              />
+              <select
+                className="w-full p-2 bg-slate-50 border border-slate-100 rounded-lg text-sm font-bold appearance-none cursor-pointer"
+                value={LINK_OPTIONS.some(o => o.value === currentStyles.link) ? currentStyles.link : '__custom__'}
+                onChange={(e) => {
+                  if (e.target.value === '__custom__') return;
+                  updateStyle('link', e.target.value);
+                }}
+              >
+                <option value="" disabled>Select a link...</option>
+                {LINK_OPTIONS.map((opt, i) => (
+                  <option key={i} value={opt.value} disabled={opt.disabled}>{opt.label}</option>
+                ))}
+              </select>
+              {(!LINK_OPTIONS.some(o => !o.disabled && o.value === currentStyles.link) || currentStyles.link === '') && (
+                <input
+                  type="text"
+                  className="w-full p-2 mt-2 bg-slate-50 border border-slate-100 rounded-lg text-sm font-bold"
+                  value={currentStyles.link || ''}
+                  onChange={(e) => updateStyle('link', e.target.value)}
+                  placeholder="Enter custom URL..."
+                />
+              )}
             </div>
 
             <div>
@@ -272,13 +304,28 @@ const EditPanel: React.FC = () => {
             </div>
             <div>
               <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Link URL (optional)</label>
-              <input
-                type="text"
-                className="w-full p-2 bg-slate-50 border border-slate-100 rounded-lg text-sm font-bold"
-                value={currentStyles.link || ''}
-                onChange={(e) => updateStyle('link', e.target.value)}
-                placeholder="https://... or #section-id"
-              />
+              <select
+                className="w-full p-2 bg-slate-50 border border-slate-100 rounded-lg text-sm font-bold appearance-none cursor-pointer"
+                value={LINK_OPTIONS.some(o => o.value === currentStyles.link) ? currentStyles.link : (currentStyles.link ? '__custom__' : '')}
+                onChange={(e) => {
+                  if (e.target.value === '__custom__') return;
+                  updateStyle('link', e.target.value);
+                }}
+              >
+                <option value="">None (no link)</option>
+                {LINK_OPTIONS.map((opt, i) => (
+                  <option key={i} value={opt.value} disabled={opt.disabled}>{opt.label}</option>
+                ))}
+              </select>
+              {currentStyles.link && !LINK_OPTIONS.some(o => !o.disabled && o.value === currentStyles.link) && (
+                <input
+                  type="text"
+                  className="w-full p-2 mt-2 bg-slate-50 border border-slate-100 rounded-lg text-sm font-bold"
+                  value={currentStyles.link || ''}
+                  onChange={(e) => updateStyle('link', e.target.value)}
+                  placeholder="Enter custom URL..."
+                />
+              )}
             </div>
           </section>
         )}
