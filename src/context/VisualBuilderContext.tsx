@@ -3,6 +3,14 @@ import { getPageData, saveDraft, publishPage } from '../../services/api';
 
 type Device = 'desktop' | 'tablet' | 'mobile';
 
+const DEFAULT_SECTION_ORDER = [
+  'hero',
+  'service-cleaning', 'service-repair', 'service-install', 'service-gas',
+  'booking-form',
+  'reviews',
+  'faq',
+];
+
 interface VisualBuilderContextType {
   isEditMode: boolean;
   setIsEditMode: (val: boolean) => void;
@@ -17,6 +25,8 @@ interface VisualBuilderContextType {
   setSelectedElementId: (id: string | null) => void;
   selectedElementType: string | null;
   setSelectedElementType: (type: string | null) => void;
+  sectionOrder: string[];
+  moveSection: (id: string, direction: 'up' | 'down') => void;
 }
 
 const VisualBuilderContext = createContext<VisualBuilderContextType | undefined>(undefined);
@@ -36,13 +46,30 @@ export const VisualBuilderProvider: React.FC<{ children: React.ReactNode }> = ({
   const fetchPageData = async () => {
     try {
       const data = await getPageData('home');
-      // If draft is empty, use published, if both empty, use default constant data
-      setPageData(data.draft && Object.keys(data.draft).length > 0 ? data.draft : data.published);
+      const resolved = data.draft && Object.keys(data.draft).length > 0 ? data.draft : data.published;
+      setPageData(resolved);
     } catch (err) {
       console.error('Failed to fetch page data', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Section order — stored inside pageData._sectionOrder
+  const sectionOrder: string[] = pageData._sectionOrder || DEFAULT_SECTION_ORDER;
+
+  const moveSection = (id: string, direction: 'up' | 'down') => {
+    const order = [...sectionOrder];
+    const index = order.indexOf(id);
+    if (index === -1) return;
+
+    const swapIndex = direction === 'up' ? index - 1 : index + 1;
+    if (swapIndex < 0 || swapIndex >= order.length) return;
+
+    // Swap
+    [order[index], order[swapIndex]] = [order[swapIndex], order[index]];
+
+    setPageData({ ...pageData, _sectionOrder: order });
   };
 
   const save = async () => {
@@ -73,7 +100,8 @@ export const VisualBuilderProvider: React.FC<{ children: React.ReactNode }> = ({
       save, publish,
       loading,
       selectedElementId, setSelectedElementId,
-      selectedElementType, setSelectedElementType
+      selectedElementType, setSelectedElementType,
+      sectionOrder, moveSection
     }}>
       {children}
     </VisualBuilderContext.Provider>

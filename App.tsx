@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import Header from './components/Header';
 import Hero from './components/Hero';
@@ -26,45 +26,84 @@ import Settings from './components/admin/Settings';
 import { VisualBuilderProvider, useVisualBuilder } from './src/context/VisualBuilderContext';
 import AdminToolbar from './src/components/AdminToolbar';
 import EditPanel from './src/components/EditPanel';
+import SectionWrapper from './src/components/SectionWrapper';
 import ProtectedRoute from './src/components/ProtectedRoute';
 
+// Section registry — maps section IDs to their component + label
+const SECTION_LABELS: Record<string, string> = {
+  'hero': 'Hero',
+  'service-cleaning': 'AC Cleaning',
+  'service-repair': 'AC Repair',
+  'service-install': 'Installation',
+  'service-gas': 'Gas Charging',
+  'booking-form': 'Booking Form',
+  'reviews': 'Reviews',
+  'faq': 'FAQ',
+};
+
+const SERVICE_MAP: Record<string, ServiceData> = {};
+SERVICES.forEach(s => { SERVICE_MAP[`service-${s.id}`] = s; });
+
 const PublicWebsite: React.FC<{ isEditMode?: boolean }> = ({ isEditMode = false }) => {
-  const [orderedServices, setOrderedServices] = useState<ServiceData[]>(SERVICES);
-  const reorderTriggered = useRef(false);
+  const { device, sectionOrder, moveSection } = useVisualBuilder();
   const { sectionId } = useParams<{ sectionId?: string }>();
-  const { device } = useVisualBuilder();
+  const scrollTriggered = useRef(false);
 
+  // Handle hash/URL-based scroll on mount
   useEffect(() => {
-    const handleInitialHash = () => {
-      const hash = window.location.hash.replace('#', '') || sectionId;
-      if (hash && SERVICES.some(s => s.id === hash)) {
-        setTimeout(() => {
-          setOrderedServices(prev => {
-            const index = prev.findIndex(s => s.id === hash);
-            if (index === -1) return prev;
-            const newOrder = [...prev];
-            const [selected] = newOrder.splice(index, 1);
-            return [selected, ...newOrder];
-          });
-
-          const target = document.getElementById(hash);
-          if (target) {
-            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-        }, 1000);
-      }
-    };
-
-    if (!reorderTriggered.current) {
-      handleInitialHash();
-      reorderTriggered.current = true;
+    if (scrollTriggered.current) return;
+    const hash = window.location.hash.replace('#', '') || sectionId;
+    if (hash) {
+      setTimeout(() => {
+        const target = document.getElementById(hash);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 1000);
     }
+    scrollTriggered.current = true;
   }, [sectionId]);
 
   const deviceWidths = {
     desktop: '100%',
     tablet: '768px',
     mobile: '375px'
+  };
+
+  // Render a section by its ID
+  const renderSection = (id: string, index: number) => {
+    const isFirst = index === 0;
+    const isLast = index === sectionOrder.length - 1;
+
+    let component: React.ReactNode = null;
+
+    if (id === 'hero') {
+      component = <Hero />;
+    } else if (id.startsWith('service-')) {
+      const service = SERVICE_MAP[id];
+      if (!service) return null;
+      component = <ServiceSection key={service.id} service={service} alternate={index % 2 === 0} />;
+    } else if (id === 'booking-form') {
+      component = <BookingForm />;
+    } else if (id === 'reviews') {
+      component = <Reviews />;
+    } else if (id === 'faq') {
+      component = <FAQ />;
+    }
+
+    if (!component) return null;
+
+    return (
+      <SectionWrapper
+        key={id}
+        id={id}
+        label={SECTION_LABELS[id] || id}
+        isFirst={isFirst}
+        isLast={isLast}
+        onMoveUp={() => moveSection(id, 'up')}
+        onMoveDown={() => moveSection(id, 'down')}
+      >
+        {component}
+      </SectionWrapper>
+    );
   };
 
   return (
@@ -77,20 +116,9 @@ const PublicWebsite: React.FC<{ isEditMode?: boolean }> = ({ isEditMode = false 
         style={{ width: isEditMode ? deviceWidths[device] : '100%' }}
       >
         <Header />
-        <Hero />
 
         <main id="main-content">
-          {orderedServices.map((service, index) => (
-            <ServiceSection
-              key={service.id}
-              service={service}
-              alternate={index % 2 === 0}
-            />
-          ))}
-
-          <BookingForm />
-          <Reviews />
-          <FAQ />
+          {sectionOrder.map((id, index) => renderSection(id, index))}
         </main>
 
         <Footer />
