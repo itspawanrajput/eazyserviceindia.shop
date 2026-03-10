@@ -12,12 +12,14 @@ import { fileURLToPath } from "url";
 import fs from "fs";
 import rateLimit from "express-rate-limit";
 import { GoogleGenAI } from "@google/genai";
+import nodemailer from "nodemailer";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PORT = parseInt(process.env.PORT || "3000", 10);
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-this";
-if (JWT_SECRET === "your-secret-key-change-this" && process.env.NODE_ENV === "production") {
-    console.warn("⚠️ WARNING: Using default JWT_SECRET in production. This is highly insecure. Please set the JWT_SECRET environment variable.");
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
+    console.error("❌ FATAL: JWT_SECRET environment variable is not set. Refusing to start in production with a default secret.");
+    process.exit(1);
 }
 async function startServer() {
     const app = express();
@@ -159,7 +161,22 @@ async function startServer() {
             cb(null, Date.now() + "-" + file.originalname);
         }
     });
-    const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } }); // 100MB
+    const allowedMimeTypes = [
+        'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
+        'video/mp4', 'video/webm', 'video/quicktime'
+    ];
+    const upload = multer({
+        storage,
+        limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
+        fileFilter: (req, file, cb) => {
+            if (allowedMimeTypes.includes(file.mimetype)) {
+                cb(null, true);
+            }
+            else {
+                cb(new Error(`File type ${file.mimetype} is not allowed. Only images and videos are accepted.`));
+            }
+        }
+    });
     // Auth Middleware
     const authenticate = (req, res, next) => {
         let token = req.cookies.token;
@@ -264,7 +281,6 @@ async function startServer() {
     });
     app.delete("/api/sections/:id", authenticate, async (req, res) => {
         await db.run("DELETE FROM sections WHERE id = ?", [req.params.id]);
-        await db.run("DELETE FROM sections WHERE id = ?", [req.params.id]);
         res.json({ message: "Section deleted" });
     });
     // Forms Builder
@@ -301,6 +317,85 @@ async function startServer() {
         const custom_data = Object.keys(rest).length > 0 ? JSON.stringify(rest) : "{}";
         await db.run("INSERT INTO leads (name, phone, email, location, service_type, message, preferred_date, preferred_time, source, custom_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [name, phone, email, location, service_type, message, preferred_date, preferred_time, source || 'unknown', custom_data]);
         res.json({ message: "Lead saved" });
+        // Fire & Forget Email Notification (runs asynchronously so the user doesn't wait)
+        (async () => {
+            try {
+                const rows = await db.all("SELECT * FROM settings");
+                const settings = rows.reduce((acc, row) => ({ ...acc, [row.key]: row.value }), {});
+                if (settings.notificationEmail && settings.smtpHost && settings.smtpUser && settings.smtpPassword) {
+                    const transporter = nodemailer.createTransport({
+                        host: settings.smtpHost,
+                        port: parseInt(settings.smtpPort || '465', 10),
+                        secure: settings.smtpPort === '465', // true for 465, false for other ports
+                        auth: {
+                            user: settings.smtpUser,
+                            pass: settings.smtpPassword,
+                        },
+                    });
+                    // Unpack custom data for nice formatting in the email
+                    let customFieldsHtml = '';
+                    const parsedCustom = JSON.parse(custom_data);
+                    if (Object.keys(parsedCustom).length > 0) {
+                        customFieldsHtml = `
+              <h3 style="color: #475569; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; margin-top: 20px;">Additional Details</h3>
+              <table style="width: 100%; border-collapse: collapse;">
+                ${Object.entries(parsedCustom).map(([k, v]) => `
+                  <tr>
+                    <td style="padding: 8px 0; font-weight: bold; width: 40%; color: #64748b; text-transform: capitalize;">${k.replace(/_/g, ' ')}</td>
+                    <td style="padding: 8px 0; color: #0f172a;">${v || '-'}</td>
+                  </tr>
+                `).join('')}
+              </table>
+            `;
+                    }
+                    const mailOptions = {
+                        from: `"${settings.siteName || 'Website Forms'}" <${settings.smtpUser}>`,
+                        to: settings.notificationEmail,
+                        subject: `🌟 New Lead: ${name} - ${service_type || 'General Inquiry'}`,
+                        html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8fafc; border-radius: 12px;">
+                <h2 style="color: #2563eb; margin-top: 0;">New Website Lead Received</h2>
+                
+                <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+                  <h3 style="color: #475569; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; margin-top: 0;">Contact Information</h3>
+                  <table style="width: 100%; border-collapse: collapse;">
+                    <tr><td style="padding: 8px 0; font-weight: bold; width: 40%; color: #64748b;">Name:</td><td style="padding: 8px 0; color: #0f172a;">${name}</td></tr>
+                    <tr><td style="padding: 8px 0; font-weight: bold; width: 40%; color: #64748b;">Phone:</td><td style="padding: 8px 0; color: #0f172a;"><a href="tel:${phone}">${phone}</a></td></tr>
+                    <tr><td style="padding: 8px 0; font-weight: bold; width: 40%; color: #64748b;">Email:</td><td style="padding: 8px 0; color: #0f172a;">${email || '-'}</td></tr>
+                    <tr><td style="padding: 8px 0; font-weight: bold; width: 40%; color: #64748b;">Location:</td><td style="padding: 8px 0; color: #0f172a;">${location}</td></tr>
+                  </table>
+
+                  <h3 style="color: #475569; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; margin-top: 20px;">Inquiry Details</h3>
+                  <table style="width: 100%; border-collapse: collapse;">
+                    <tr><td style="padding: 8px 0; font-weight: bold; width: 40%; color: #64748b;">Service Type:</td><td style="padding: 8px 0; color: #2563eb; font-weight: bold;">${service_type || 'General'}</td></tr>
+                    <tr><td style="padding: 8px 0; font-weight: bold; width: 40%; color: #64748b;">Source Form:</td><td style="padding: 8px 0; color: #0f172a;">${source || 'Unknown'}</td></tr>
+                    <tr><td style="padding: 8px 0; font-weight: bold; width: 40%; color: #64748b;">Preference:</td><td style="padding: 8px 0; color: #0f172a;">${preferred_date || 'Any Date'} at ${preferred_time || 'Any Time'}</td></tr>
+                  </table>
+
+                  ${customFieldsHtml}
+
+                  ${message ? `
+                  <h3 style="color: #475569; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; margin-top: 20px;">Customer Message</h3>
+                  <div style="background-color: #f1f5f9; padding: 15px; border-radius: 8px; color: #334155; font-style: italic;">
+                    "${message}"
+                  </div>
+                  ` : ''}
+                </div>
+                
+                <div style="text-align: center;">
+                  <a href="${settings.siteUrl || 'https://acgoa.com'}/admin" style="display: inline-block; background-color: #0f172a; color: #ffffff; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 8px;">View in CRM</a>
+                </div>
+              </div>
+            `
+                    };
+                    await transporter.sendMail(mailOptions);
+                    console.log(`[EMAIL] Successfully sent lead notification to ${settings.notificationEmail}`);
+                }
+            }
+            catch (err) {
+                console.error("[EMAIL] Failed to send lead notification email:", err);
+            }
+        })();
     });
     app.patch("/api/leads/:id", authenticate, async (req, res) => {
         const { status } = req.body;

@@ -12,6 +12,7 @@ import WhatsAppButton from './components/WhatsAppButton';
 import ModalForm from './components/ModalForm';
 import { SERVICES } from './constants';
 import { ServiceData } from './types';
+import { useVisitorTracking } from './src/hooks/useVisitorTracking';
 
 // Admin Components
 import AdminLogin from './components/admin/AdminLogin';
@@ -100,7 +101,6 @@ const PublicWebsite: React.FC<{ isEditMode?: boolean }> = ({ isEditMode = false 
   );
 };
 
-import { useVisitorTracking } from './src/hooks/useVisitorTracking';
 
 const App: React.FC = () => {
   useVisitorTracking();

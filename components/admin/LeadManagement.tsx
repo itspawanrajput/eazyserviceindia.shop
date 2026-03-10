@@ -60,22 +60,24 @@ const LeadManagement: React.FC = () => {
   };
 
   const exportToCSV = () => {
+    const csvEscape = (val: string) => `"${(val || '').replace(/"/g, '""')}"`;
+
     const headers = ['Name', 'Phone', 'Email', 'Location', 'Service', 'Source', 'Message', 'Status', 'Created At', 'Preferred Date', 'Preferred Time'];
     const rows = leads.map(l => [
-      l.name,
-      l.phone,
-      l.email,
-      l.location,
-      l.service_type,
-      l.source || 'Unknown',
-      l.message.replace(/,/g, ' '),
-      l.status,
-      new Date(l.created_at).toLocaleString(),
-      l.preferred_date || '',
-      l.preferred_time || ''
+      csvEscape(l.name),
+      csvEscape(l.phone),
+      csvEscape(l.email),
+      csvEscape(l.location),
+      csvEscape(l.service_type),
+      csvEscape(l.source || 'Unknown'),
+      csvEscape(l.message),
+      csvEscape(l.status),
+      csvEscape(new Date(l.created_at).toLocaleString()),
+      csvEscape(l.preferred_date || ''),
+      csvEscape(l.preferred_time || '')
     ]);
 
-    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+    const csvContent = [headers.map(csvEscape), ...rows].map(e => e.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
@@ -313,9 +315,29 @@ const LeadManagement: React.FC = () => {
                       <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 shrink-0">
                         <Phone className="w-4 h-4" />
                       </div>
-                      <div>
+                      <div className="flex-1">
                         <p className="text-xs text-slate-500 font-medium">Phone Number</p>
-                        <p className="font-bold text-slate-900 break-all">{selectedLead.phone}</p>
+                        <div className="flex items-center gap-3 mt-1">
+                          <p className="font-bold text-slate-900 break-all">{selectedLead.phone}</p>
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={`tel:${selectedLead.phone.replace(/[^0-9+]/g, '')}`}
+                              className="px-3 py-1 bg-green-50 text-green-600 rounded-lg text-xs font-bold hover:bg-green-100 transition-colors flex items-center gap-1"
+                              title="Call Customer"
+                            >
+                              <Phone className="w-3 h-3" /> Call
+                            </a>
+                            <a
+                              href={`https://wa.me/${selectedLead.phone.replace(/[^0-9]/g, '')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 py-1 bg-[#E8F8F0] text-[#25D366] rounded-lg text-xs font-bold hover:bg-[#D1F1E1] transition-colors flex items-center gap-1"
+                              title="Message on WhatsApp"
+                            >
+                              <MessageSquare className="w-3 h-3" /> WhatsApp
+                            </a>
+                          </div>
+                        </div>
                       </div>
                     </div>
                     <div className="flex gap-3">
@@ -324,7 +346,13 @@ const LeadManagement: React.FC = () => {
                       </div>
                       <div>
                         <p className="text-xs text-slate-500 font-medium">Email Address</p>
-                        <p className="font-bold text-slate-900 break-all">{selectedLead.email || 'Not provided'}</p>
+                        {selectedLead.email ? (
+                          <a href={`mailto:${selectedLead.email}`} className="font-bold text-blue-600 hover:underline break-all mt-1 block">
+                            {selectedLead.email}
+                          </a>
+                        ) : (
+                          <p className="font-bold text-slate-900 break-all mt-1">Not provided</p>
+                        )}
                       </div>
                     </div>
                   </div>

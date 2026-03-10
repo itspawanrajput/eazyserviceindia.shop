@@ -93,7 +93,8 @@ eazyservice-ac-services/
 │   │   └── ProtectedRoute.tsx  # Auth guard for admin routes
 │   ├── context/
 │   │   └── VisualBuilderContext.tsx  # Global builder state
-│   └── services/               # (API service helpers)
+│   └── hooks/
+│       └── useVisitorTracking.ts    # Visitor analytics hook
 │
 └── services/
     └── api.ts              # Frontend API call helpers
@@ -204,13 +205,31 @@ The app uses a local SQLite database (`database.sqlite`) auto-created on first r
 
 ---
 
-## 🚀 Deployment (Hostinger / Any VPS)
+## 🚀 Deployment (Hostinger via Git)
 
-1. Upload all files to your server
-2. Run `npm install` and `npm run build`
-3. Set `NODE_ENV=production` in your environment
-4. Start the server: `node server.ts` (or use PM2 for process management)
-5. Point your domain to port `3000` (or use a reverse proxy like Nginx)
+### Initial Setup on Hostinger
+1. In Hostinger panel → **Websites** → **Manage** → **Advanced** → **Git**
+2. Set the repository to `https://github.com/itspawanrajput/eazyserviceindia.shop.git`
+3. Set the branch to `main`
+4. Under **Node.js** settings, set:
+   - **Node.js version:** `18+`
+   - **Startup file:** `server.js`
+   - **Environment variables:** `NODE_ENV=production`, `JWT_SECRET=<your-secret>`, `GEMINI_API_KEY=<your-key>`
+
+### Deploy Workflow
+```bash
+# 1. Build locally
+npm run build
+
+# 2. Commit everything (dist/ and server.js are tracked)
+git add -A
+git commit -m "your commit message"
+
+# 3. Push to GitHub → Hostinger auto-deploys
+git push origin main
+```
+
+> **Note:** `dist/` and `server.js` are committed to the repo so Hostinger can serve them immediately after `git pull` without needing to build on the server.
 
 ---
 

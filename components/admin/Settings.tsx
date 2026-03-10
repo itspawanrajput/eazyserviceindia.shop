@@ -12,7 +12,8 @@ import {
     Twitter,
     Loader2,
     CheckCircle,
-    AlertCircle
+    AlertCircle,
+    Send
 } from 'lucide-react';
 
 const Settings: React.FC = () => {
@@ -24,7 +25,13 @@ const Settings: React.FC = () => {
         facebookUrl: '',
         instagramUrl: '',
         twitterUrl: '',
-        maintenanceMode: 'false'
+        maintenanceMode: 'false',
+        // Email Notification Settings
+        notificationEmail: '',
+        smtpHost: '',
+        smtpPort: '465',
+        smtpUser: '',
+        smtpPassword: ''
     });
 
     const [loading, setLoading] = useState(true);
@@ -133,6 +140,84 @@ const Settings: React.FC = () => {
                                     <option value="true">Enabled (Show Coming Soon)</option>
                                 </select>
                                 <p className="text-xs text-slate-400 mt-2 font-medium">When enabled, visitors will see a maintenance message.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Email Delivery Settings */}
+                <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <Send className="w-5 h-5 text-purple-600" />
+                            <h2 className="font-bold text-slate-900">Email Delivery & Notifications</h2>
+                        </div>
+                    </div>
+                    <div className="p-8 space-y-6">
+                        <div className="mb-4">
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Notification Recipient Email</label>
+                            <input
+                                type="email"
+                                name="notificationEmail"
+                                placeholder="Where should new leads be sent? (e.g. your@email.com)"
+                                value={settings.notificationEmail}
+                                onChange={handleChange}
+                                className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-2 focus:ring-purple-500 transition-all outline-none text-slate-900 font-medium placeholder:text-slate-400"
+                            />
+                            <p className="text-xs text-slate-500 mt-2 font-medium">All new leads submitted through any form will be emailed to this address.</p>
+                        </div>
+
+                        <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100">
+                            <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                                <SettingsIcon className="w-4 h-4 text-slate-500" /> SMTP Configuration
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-2">SMTP Host</label>
+                                    <input
+                                        type="text"
+                                        name="smtpHost"
+                                        placeholder="smtp.gmail.com or smtp.hostinger.com"
+                                        value={settings.smtpHost}
+                                        onChange={handleChange}
+                                        className="w-full p-3 rounded-xl bg-white border border-slate-200 focus:ring-2 focus:ring-purple-500 transition-all outline-none text-sm text-slate-900"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-2">SMTP Port</label>
+                                    <select
+                                        name="smtpPort"
+                                        value={settings.smtpPort}
+                                        onChange={handleChange}
+                                        className="w-full p-3 rounded-xl bg-white border border-slate-200 focus:ring-2 focus:ring-purple-500 transition-all outline-none text-sm text-slate-900"
+                                    >
+                                        <option value="465">465 (SSL/TLS)</option>
+                                        <option value="587">587 (STARTTLS)</option>
+                                        <option value="25">25 (Unsecured)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-2">SMTP Username / Email</label>
+                                    <input
+                                        type="text"
+                                        name="smtpUser"
+                                        placeholder="your-email@domain.com"
+                                        value={settings.smtpUser}
+                                        onChange={handleChange}
+                                        className="w-full p-3 rounded-xl bg-white border border-slate-200 focus:ring-2 focus:ring-purple-500 transition-all outline-none text-sm text-slate-900"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-2">SMTP Password / App Password</label>
+                                    <input
+                                        type="password"
+                                        name="smtpPassword"
+                                        placeholder="••••••••••••••••"
+                                        value={settings.smtpPassword}
+                                        onChange={handleChange}
+                                        className="w-full p-3 rounded-xl bg-white border border-slate-200 focus:ring-2 focus:ring-purple-500 transition-all outline-none text-sm text-slate-900"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
