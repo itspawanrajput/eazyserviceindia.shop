@@ -65,6 +65,8 @@ async function startServer() {
       message TEXT,
       preferred_date TEXT,
       preferred_time TEXT,
+      source TEXT,
+      custom_data TEXT,
       status TEXT DEFAULT 'new',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -107,16 +109,13 @@ async function startServer() {
   // Migration: Add preferred_date and preferred_time if they don't exist
   const tableInfo = await db.all("PRAGMA table_info(leads)");
   const hasPreferredDate = tableInfo.some(col => col.name === 'preferred_date');
-  const hasPreferredTime = tableInfo.some(col => col.name === 'preferred_time');
-
   if (!hasPreferredDate) {
     await db.exec("ALTER TABLE leads ADD COLUMN preferred_date TEXT");
-  }
-  if (!hasPreferredTime) {
     await db.exec("ALTER TABLE leads ADD COLUMN preferred_time TEXT");
+    console.log("[MIGRATE] Added preferred_date and preferred_time to leads table");
   }
 
-  // Migration: Add source column if it doesn't exist
+  // Migration: Add source and custom_data if they don't exist
   const hasSource = tableInfo.some(col => col.name === 'source');
   if (!hasSource) {
     await db.exec("ALTER TABLE leads ADD COLUMN source TEXT DEFAULT 'unknown'");
