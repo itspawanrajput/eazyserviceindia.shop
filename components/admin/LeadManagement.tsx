@@ -247,20 +247,36 @@ const LeadManagement: React.FC = () => {
                       </select>
                     </td>
                     <td className="p-6">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <a
+                          href={`https://wa.me/${lead.phone.replace(/[^0-9]/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-2 text-[#25D366] hover:bg-green-50 rounded-xl transition-all"
+                          title="WhatsApp"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                        </a>
+                        <a
+                          href={`tel:${lead.phone.replace(/[^0-9+]/g, '')}`}
+                          className="p-2 text-blue-500 hover:bg-blue-50 rounded-xl transition-all"
+                          title="Call"
+                        >
+                          <Phone className="w-4 h-4" />
+                        </a>
                         <button
                           onClick={() => setSelectedLead(lead)}
                           className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-                          title="View Full Details"
+                          title="View Details"
                         >
-                          <Eye className="w-5 h-5" />
+                          <Eye className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(lead.id)}
-                          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                          title="Delete Lead"
+                          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                          title="Delete"
                         >
-                          <Trash2 className="w-5 h-5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </td>

@@ -444,6 +444,69 @@ async function startServer() {
         console.error("[EMAIL] Failed to send lead notification email:", err);
       }
     })();
+
+    // Fire & Forget: Google Sheets Integration
+    (async () => {
+      try {
+        const rows = await db.all("SELECT * FROM settings");
+        const settings = rows.reduce((acc, row) => ({ ...acc, [row.key]: row.value }), {}) as any;
+
+        if (settings.googleSheetWebhookUrl) {
+          const sheetData = {
+            name: name || '',
+            phone: phone || '',
+            email: email || '',
+            location: location || '',
+            service_type: service_type || '',
+            source: source || 'unknown',
+            message: message || '',
+            preferred_date: preferred_date || '',
+            preferred_time: preferred_time || '',
+            date: new Date().toISOString(),
+            ...JSON.parse(custom_data)
+          };
+
+          const response = await fetch(settings.googleSheetWebhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(sheetData),
+          });
+
+          console.log(`[SHEETS] Lead sent to Google Sheet, status: ${response.status}`);
+        }
+      } catch (err) {
+        console.error("[SHEETS] Failed to send lead to Google Sheets:", err);
+      }
+    })();
+
+    // Fire & Forget: WhatsApp Notification
+    (async () => {
+      try {
+        const rows = await db.all("SELECT * FROM settings");
+        const settings = rows.reduce((acc, row) => ({ ...acc, [row.key]: row.value }), {}) as any;
+
+        if (settings.whatsappApiUrl && settings.whatsappNotifyNumber) {
+          // Use WhatsApp Business API / Green API for automated sending
+          const waMessage = `🌟 *New Lead Received*\n\n👤 *Name:* ${name}\n📞 *Phone:* ${phone}\n📧 *Email:* ${email || 'N/A'}\n📍 *Location:* ${location || 'N/A'}\n🔧 *Service:* ${service_type || 'General'}\n📋 *Source:* ${source || 'Unknown'}\n💬 *Message:* ${message || 'None'}\n📅 *Date:* ${preferred_date || 'Any'} at ${preferred_time || 'Any'}`;
+
+          const response = await fetch(settings.whatsappApiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chatId: `${settings.whatsappNotifyNumber}@c.us`,
+              message: waMessage,
+            }),
+          });
+
+          console.log(`[WHATSAPP] Lead notification sent, status: ${response.status}`);
+        } else if (settings.whatsappNotifyNumber) {
+          // Just log the WhatsApp link — will be shown in lead management UI
+          console.log(`[WHATSAPP] Lead WhatsApp link available for ${settings.whatsappNotifyNumber}`);
+        }
+      } catch (err) {
+        console.error("[WHATSAPP] Failed to send WhatsApp notification:", err);
+      }
+    })();
   });
 
   app.patch("/api/leads/:id", authenticate, async (req, res) => {

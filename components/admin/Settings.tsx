@@ -13,7 +13,11 @@ import {
     Loader2,
     CheckCircle,
     AlertCircle,
-    Send
+    Send,
+    Sheet,
+    MessageCircle,
+    ExternalLink,
+    Info
 } from 'lucide-react';
 
 const Settings: React.FC = () => {
@@ -31,7 +35,12 @@ const Settings: React.FC = () => {
         smtpHost: '',
         smtpPort: '465',
         smtpUser: '',
-        smtpPassword: ''
+        smtpPassword: '',
+        // Google Sheets Integration
+        googleSheetWebhookUrl: '',
+        // WhatsApp Notification
+        whatsappNotifyNumber: '',
+        whatsappApiUrl: ''
     });
 
     const [loading, setLoading] = useState(true);
@@ -223,6 +232,92 @@ const Settings: React.FC = () => {
                     </div>
                 </div>
 
+                {/* Google Sheets Integration */}
+                <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <Sheet className="w-5 h-5 text-green-600" />
+                            <h2 className="font-bold text-slate-900">Google Sheets Integration</h2>
+                        </div>
+                        {settings.googleSheetWebhookUrl && (
+                            <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full">Active</span>
+                        )}
+                    </div>
+                    <div className="p-8 space-y-6">
+                        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4">
+                            <div className="flex items-start gap-3">
+                                <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                                <div className="text-sm text-blue-800">
+                                    <p className="font-bold mb-2">How to set up Google Sheets:</p>
+                                    <ol className="list-decimal pl-4 space-y-1 text-xs">
+                                        <li>Create a Google Sheet with headers: <code className="bg-blue-100 px-1 rounded">Name, Phone, Email, Location, Service, Source, Message, Date</code></li>
+                                        <li>Go to <strong>Extensions → Apps Script</strong></li>
+                                        <li>Paste the script that handles <code className="bg-blue-100 px-1 rounded">doPost(e)</code> and appends rows</li>
+                                        <li>Click <strong>Deploy → New Deployment → Web App</strong></li>
+                                        <li>Set "Who has access" to <strong>Anyone</strong>, then copy the URL below</li>
+                                    </ol>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2">Google Apps Script Web App URL</label>
+                            <input
+                                type="url"
+                                name="googleSheetWebhookUrl"
+                                placeholder="https://script.google.com/macros/s/AKfy.../exec"
+                                value={settings.googleSheetWebhookUrl}
+                                onChange={handleChange}
+                                className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-2 focus:ring-green-500 transition-all outline-none text-slate-900 font-medium placeholder:text-slate-400"
+                            />
+                            <p className="text-xs text-slate-500 mt-2 font-medium">Every new lead will be appended as a row to your Google Sheet automatically.</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* WhatsApp Notification */}
+                <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <MessageCircle className="w-5 h-5 text-green-500" />
+                            <h2 className="font-bold text-slate-900">WhatsApp Lead Alerts</h2>
+                        </div>
+                        {settings.whatsappNotifyNumber && (
+                            <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full">Active</span>
+                        )}
+                    </div>
+                    <div className="p-8 space-y-6">
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2">WhatsApp Notification Number</label>
+                            <input
+                                type="text"
+                                name="whatsappNotifyNumber"
+                                placeholder="919911481331 (with country code, no +)"
+                                value={settings.whatsappNotifyNumber}
+                                onChange={handleChange}
+                                className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-2 focus:ring-green-500 transition-all outline-none text-slate-900 font-medium placeholder:text-slate-400"
+                            />
+                            <p className="text-xs text-slate-500 mt-2 font-medium">New leads will generate a WhatsApp message link. Include country code without + (e.g., 919911481331).</p>
+                        </div>
+                        <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100">
+                            <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                                <SettingsIcon className="w-4 h-4 text-slate-500" /> Advanced: WhatsApp API (Optional)
+                            </h3>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-2">WhatsApp Business API / Green API URL</label>
+                                <input
+                                    type="url"
+                                    name="whatsappApiUrl"
+                                    placeholder="https://api.green-api.com/waInstance.../sendMessage/..."
+                                    value={settings.whatsappApiUrl}
+                                    onChange={handleChange}
+                                    className="w-full p-3 rounded-xl bg-white border border-slate-200 focus:ring-2 focus:ring-green-500 transition-all outline-none text-sm text-slate-900"
+                                />
+                                <p className="text-xs text-slate-400 mt-2 font-medium">If configured, leads will be sent automatically via API. Otherwise, a clickable WhatsApp link will be shown in Lead Management.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Contact Information */}
                 <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
                     <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center gap-3">
@@ -272,7 +367,7 @@ const Settings: React.FC = () => {
                 </div>
 
                 {/* Social Media Links */}
-                <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden mb-12">
+                <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden mb-20">
                     <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center gap-3">
                         <SettingsIcon className="w-5 h-5 text-blue-600" />
                         <h2 className="font-bold text-slate-900">Social Media Links</h2>
