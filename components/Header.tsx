@@ -37,7 +37,9 @@ const Header: React.FC = () => {
   }, [displayText, isDeleting, placeholderIndex]);
 
   const scrollTo = (id: string) => {
-    const element = document.getElementById(id);
+    // Visual builder prefixes service IDs with 'service-'
+    const sectionId = (Object.values(SectionID) as string[]).includes(id) ? `service-${id}` : id;
+    const element = document.getElementById(sectionId);
     if (element) {
       const isMobile = window.innerWidth < 1024;
       const headerOffset = isMobile ? 130 : 100;

@@ -7,8 +7,10 @@ import HeroForm from './HeroForm';
 import Editable from '../src/components/Editable';
 
 const Hero: React.FC = () => {
-  const scrollTo = (id: SectionID) => {
-    const el = document.getElementById(id);
+  const scrollTo = (id: SectionID | string) => {
+    // Visual builder prefixes service IDs with 'service-'
+    const sectionId = (Object.values(SectionID) as string[]).includes(id) ? `service-${id}` : id;
+    const el = document.getElementById(sectionId);
     if (el) {
       const headerOffset = window.innerWidth < 1024 ? 130 : 100;
       const elementPosition = el.getBoundingClientRect().top;

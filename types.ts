@@ -13,8 +13,8 @@ export interface ServiceData {
 }
 
 export enum SectionID {
-  CLEANING = 'Deep_AC_Dry_&_Wet_Cleaning',
-  REPAIR = 'Fast_&_Reliable_AC_Repair_Services',
-  INSTALL = 'Expert_AC_Installation_&_Uninstallation',
-  GAS = 'Premium_AC_Gas_Refilling'
+  CLEANING = 'cleaning',
+  REPAIR = 'repair',
+  INSTALL = 'install',
+  GAS = 'gas'
 }
