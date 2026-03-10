@@ -2,6 +2,37 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useVisualBuilder } from '../context/VisualBuilderContext';
 import { Settings, Trash2, Copy } from 'lucide-react';
 
+// Recursively clone a React element tree, replacing the first <img>'s src
+const cloneWithImgSrc = (element: any, newSrc: string, imgStyle?: React.CSSProperties): any => {
+  if (!element || typeof element !== 'object') return element;
+  // Direct img element
+  if (element.type === 'img') {
+    return React.cloneElement(element, { src: newSrc, style: { ...element.props.style, ...imgStyle } });
+  }
+  // Has children — walk into them
+  if (element.props?.children) {
+    const kids = element.props.children;
+    if (Array.isArray(kids)) {
+      let found = false;
+      const newKids = kids.map((kid: any) => {
+        if (found) return kid;
+        const result = cloneWithImgSrc(kid, newSrc, imgStyle);
+        if (result !== kid) found = true;
+        return result;
+      });
+      if (found) return React.cloneElement(element, {}, ...newKids);
+    } else {
+      const result = cloneWithImgSrc(kids, newSrc, imgStyle);
+      if (result !== kids) return React.cloneElement(element, {}, result);
+    }
+  }
+  // If element itself has src prop (like img), set it
+  if (element.props?.src !== undefined) {
+    return React.cloneElement(element, { src: newSrc, style: { ...element.props.style, ...imgStyle } });
+  }
+  return element;
+};
+
 interface EditableProps {
   id: string;
   children: React.ReactElement;
@@ -115,6 +146,15 @@ const Editable: React.FC<EditableProps> = ({ id, children, type }) => {
     backgroundPosition: currentStyles.backgroundPosition || 'center',
   };
 
+  // Image-specific styles
+  const imgStyle: React.CSSProperties = {
+    objectFit: (currentStyles.objectFit as any) || 'cover',
+    objectPosition: currentStyles.objectPosition || 'center',
+    width: currentStyles.imgWidth || undefined,
+    height: currentStyles.imgHeight || undefined,
+    borderRadius: currentStyles.imgBorderRadius || undefined,
+  };
+
   const renderVideoBackground = () => {
     if (type !== 'section' || !currentStyles.backgroundVideo) return null;
     return (
@@ -141,11 +181,7 @@ const Editable: React.FC<EditableProps> = ({ id, children, type }) => {
     }
 
     if (type === 'image' && value) {
-      // image Editable wraps a <div> containing an <img>; clone the div and set src on inner img
-      return React.cloneElement(children, {
-        style: { ...children.props.style, ...style },
-        src: value
-      });
+      return cloneWithImgSrc(children, value, imgStyle);
     }
 
     if (type === 'button') {
@@ -259,10 +295,11 @@ const Editable: React.FC<EditableProps> = ({ id, children, type }) => {
             {currentStyles.value || children.props.children}
           </div>
         ) : type === 'image' ? (
-          React.cloneElement(children, {
-            style: { ...children.props.style, ...style },
-            src: currentStyles.value || children.props.src
-          })
+          cloneWithImgSrc(
+            children,
+            currentStyles.value || children.props.src || '',
+            imgStyle
+          )
         ) : type === 'button' || type === 'link' ? (
           React.cloneElement(children, {
             style: { ...children.props.style, ...style },

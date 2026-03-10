@@ -259,6 +259,8 @@ const EditPanel: React.FC = () => {
               <ImageIcon className="w-4 h-4" />
               <span className="text-[10px] font-black uppercase tracking-widest">{isIcon ? 'Icon Image' : 'Image'}</span>
             </div>
+
+            {/* Image URL + Upload */}
             <div>
               <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Image URL</label>
               <div className="flex gap-2">
@@ -278,9 +280,97 @@ const EditPanel: React.FC = () => {
                   <Upload className="w-4 h-4" />
                 </button>
               </div>
+
+              {/* Image Preview */}
               {currentStyles.value && (
-                <img src={currentStyles.value} alt="preview" className="mt-2 w-full h-20 object-cover rounded-lg border border-slate-200" referrerPolicy="no-referrer" />
+                <div className="mt-2 relative group/preview">
+                  <img
+                    src={currentStyles.value}
+                    alt="preview"
+                    className="w-full h-24 object-cover rounded-lg border border-slate-200"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                  <button
+                    onClick={() => updateStyle('value', '')}
+                    className="absolute top-1 right-1 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded font-bold opacity-0 group-hover/preview:opacity-100 transition-opacity"
+                  >
+                    ✕ Remove
+                  </button>
+                </div>
               )}
+            </div>
+
+            {/* Image Fit */}
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Image Fit</label>
+              <select
+                className="w-full p-2 bg-slate-50 border border-slate-100 rounded-lg text-sm font-bold"
+                value={currentStyles.objectFit || 'cover'}
+                onChange={(e) => updateStyle('objectFit', e.target.value)}
+              >
+                <option value="cover">Cover (fill area, crop if needed)</option>
+                <option value="contain">Contain (fit inside, no crop)</option>
+                <option value="fill">Stretch (fill area exactly)</option>
+                <option value="none">Original Size (no resize)</option>
+                <option value="scale-down">Scale Down (shrink only)</option>
+              </select>
+            </div>
+
+            {/* Image Position */}
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Image Position</label>
+              <select
+                className="w-full p-2 bg-slate-50 border border-slate-100 rounded-lg text-sm font-bold"
+                value={currentStyles.objectPosition || 'center'}
+                onChange={(e) => updateStyle('objectPosition', e.target.value)}
+              >
+                <option value="center">Center</option>
+                <option value="top">Top</option>
+                <option value="bottom">Bottom</option>
+                <option value="left">Left</option>
+                <option value="right">Right</option>
+                <option value="top left">Top Left</option>
+                <option value="top right">Top Right</option>
+                <option value="bottom left">Bottom Left</option>
+                <option value="bottom right">Bottom Right</option>
+              </select>
+            </div>
+
+            {/* Width & Height */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Width</label>
+                <input
+                  type="text"
+                  className="w-full p-2 bg-slate-50 border border-slate-100 rounded-lg text-sm font-bold"
+                  value={currentStyles.imgWidth || ''}
+                  onChange={(e) => updateStyle('imgWidth', e.target.value)}
+                  placeholder="e.g. 100%, 200px"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Height</label>
+                <input
+                  type="text"
+                  className="w-full p-2 bg-slate-50 border border-slate-100 rounded-lg text-sm font-bold"
+                  value={currentStyles.imgHeight || ''}
+                  onChange={(e) => updateStyle('imgHeight', e.target.value)}
+                  placeholder="e.g. auto, 300px"
+                />
+              </div>
+            </div>
+
+            {/* Border Radius */}
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Border Radius</label>
+              <input
+                type="text"
+                className="w-full p-2 bg-slate-50 border border-slate-100 rounded-lg text-sm font-bold"
+                value={currentStyles.imgBorderRadius || ''}
+                onChange={(e) => updateStyle('imgBorderRadius', e.target.value)}
+                placeholder="e.g. 8px, 50%, 1rem"
+              />
             </div>
           </section>
         )}
