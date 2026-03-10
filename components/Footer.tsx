@@ -107,23 +107,27 @@ const Footer: React.FC = () => {
 
           {/* Quick Links */}
           <div>
-            <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-6">Quick Links</h4>
+            <Editable id="footer-quicklinks-title" type="text">
+              <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-6">Quick Links</h4>
+            </Editable>
             <ul className="space-y-3">
               {[
-                { label: 'AC Repair', href: '#repair' },
-                { label: 'AC Cleaning', href: '#cleaning' },
-                { label: 'AC Installation', href: '#install' },
-                { label: 'AC Gas Refill', href: '#gas' },
-                { label: 'Book a Service', href: '#booking-form' },
+                { id: 'footer-link-repair', label: 'AC Repair', href: '#repair' },
+                { id: 'footer-link-cleaning', label: 'AC Cleaning', href: '#cleaning' },
+                { id: 'footer-link-install', label: 'AC Installation', href: '#install' },
+                { id: 'footer-link-gas', label: 'AC Gas Refill', href: '#gas' },
+                { id: 'footer-link-booking', label: 'Book a Service', href: '#booking-form' },
               ].map(link => (
-                <li key={link.href}>
-                  <a
-                    href={link.href}
-                    className="group flex items-center text-slate-400 hover:text-white transition-colors duration-200 text-sm"
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500/40 mr-3 group-hover:bg-blue-400 group-hover:shadow-[0_0_8px_rgba(59,130,246,0.5)] transition-all duration-300"></span>
-                    {link.label}
-                  </a>
+                <li key={link.id}>
+                  <Editable id={link.id} type="link">
+                    <a
+                      href={link.href}
+                      className="group flex items-center text-slate-400 hover:text-white transition-colors duration-200 text-sm"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500/40 mr-3 group-hover:bg-blue-400 group-hover:shadow-[0_0_8px_rgba(59,130,246,0.5)] transition-all duration-300"></span>
+                      {link.label}
+                    </a>
+                  </Editable>
                 </li>
               ))}
             </ul>
