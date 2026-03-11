@@ -459,7 +459,19 @@ const LeadManagement: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Address / Location</p>
-                      <span className="text-sm text-slate-700">{selectedLead.location}</span>
+                      <div className="flex items-start gap-2">
+                        <span className="text-sm text-slate-700 leading-snug">{selectedLead.location || 'Not provided'}</span>
+                        {selectedLead.location && (
+                          <a 
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedLead.location)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-0.5 shrink-0 mt-0.5"
+                          >
+                            <MapPin className="w-3 h-3" /> Directions
+                          </a>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Service Type</p>
