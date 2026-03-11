@@ -5,8 +5,15 @@ import { SERVICES } from '../constants';
 import { SectionID } from '../types';
 import HeroForm from './HeroForm';
 import Editable from '../src/components/Editable';
+import { useVisualBuilder } from '../src/context/VisualBuilderContext';
 
 const Hero: React.FC = () => {
+  const { pageData, device } = useVisualBuilder();
+
+  const heroContainerData = pageData['hero-form-container'] || {};
+  const heroContainerStyles = heroContainerData[device] || heroContainerData['desktop'] || {};
+  const heroBgUrl = heroContainerStyles.backgroundImage || 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=2000&auto=format&fit=crop';
+
   const scrollTo = (id: SectionID | string) => {
     // Visual builder prefixes service IDs with 'service-'
     const sectionId = (Object.values(SectionID) as string[]).includes(id) ? `service-${id}` : id;
@@ -151,7 +158,7 @@ const Hero: React.FC = () => {
                 {/* Background Image */}
                 <div className="absolute inset-0 z-0">
                   <img 
-                    src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=2000&auto=format&fit=crop" 
+                    src={heroBgUrl} 
                     alt="Background"
                     className="w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-700"
                     referrerPolicy="no-referrer"

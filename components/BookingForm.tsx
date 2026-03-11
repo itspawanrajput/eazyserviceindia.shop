@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Send, MapPin, Loader2, User, Phone, Mail, MessageSquare, ChevronDown, FormInput } from 'lucide-react';
 import { createLead, detectLocation, getForms } from '../services/api';
 import Editable from '../src/components/Editable';
+import { useVisualBuilder } from '../src/context/VisualBuilderContext';
 
 const BookingForm: React.FC = () => {
+  const { pageData, device } = useVisualBuilder();
   const [fields, setFields] = useState<any[]>([]);
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [coords, setCoords] = useState<{ lat: number, lng: number } | null>(null);
@@ -118,12 +120,16 @@ const BookingForm: React.FC = () => {
     }
   };
 
+  const bookingSectionData = pageData['booking-section'] || {};
+  const bookingSectionStyles = bookingSectionData[device] || bookingSectionData['desktop'] || {};
+  const bgImageUrl = bookingSectionStyles.backgroundImage || 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=2000&auto=format&fit=crop';
+
   return (
     <Editable id="booking-section" type="section">
       <section id="booking-form" className="relative py-14 md:py-20 overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img
-            src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=2000&auto=format&fit=crop"
+            src={bgImageUrl}
             alt="AC Service Background"
             className="w-full h-full object-cover"
             referrerPolicy="no-referrer"
