@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MapPin, Phone, User, MessageSquare, ChevronDown, Loader2, Mail, FormInput } from 'lucide-react';
 import { createLead, detectLocation, getForms } from '../services/api';
 import Editable from '../src/components/Editable';
+import { useTracking } from '../src/hooks/useTracking';
 
 const HeroForm: React.FC = () => {
   const [fields, setFields] = useState<any[]>([]);
@@ -13,6 +14,8 @@ const HeroForm: React.FC = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  
+  const trackingData = useTracking();
 
   useEffect(() => {
     // Load dynamic form fields
@@ -98,7 +101,7 @@ const HeroForm: React.FC = () => {
 
     try {
       // Map form data dynamically
-      const payload: any = { source: 'Hero Form' };
+      const payload: any = { source: 'Hero Form', ...trackingData };
       Object.keys(formData).forEach(key => {
         payload[key] = formData[key];
       });

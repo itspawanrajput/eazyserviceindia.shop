@@ -3,6 +3,7 @@ import { Send, MapPin, Loader2, User, Phone, Mail, MessageSquare, ChevronDown, F
 import { createLead, detectLocation, getForms } from '../services/api';
 import Editable from '../src/components/Editable';
 import { useVisualBuilder } from '../src/context/VisualBuilderContext';
+import { useTracking } from '../src/hooks/useTracking';
 
 const BookingForm: React.FC = () => {
   const { pageData, device } = useVisualBuilder();
@@ -14,6 +15,8 @@ const BookingForm: React.FC = () => {
   const [showWarnings, setShowWarnings] = useState({ email: false, location: false });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+
+  const trackingData = useTracking();
 
   useEffect(() => {
     const loadFields = async () => {
@@ -90,7 +93,7 @@ const BookingForm: React.FC = () => {
     setIsSubmitting(true);
     setSubmitStatus('idle');
     try {
-      const payload: any = { source: 'Booking Form' };
+      const payload: any = { source: 'Booking Form', ...trackingData };
       Object.keys(formData).forEach(key => {
         payload[key] = formData[key];
       });

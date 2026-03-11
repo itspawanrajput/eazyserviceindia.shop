@@ -42,6 +42,10 @@ export interface Lead {
   status: string;
   created_at: string;
   custom_data?: string;
+  assigned_to?: string;
+  quality_score?: string;
+  notes?: string;
+  activities?: string;
 }
 
 export const getSettings = () => api.get('/settings').then(res => res.data);
@@ -56,7 +60,7 @@ export const saveForm = (id: string, name: string, fields_json: any[]) => api.pu
 
 export const getLeads = () => api.get('/leads').then(res => res.data);
 export const createLead = (lead: any) => api.post('/leads', lead);
-export const updateLeadStatus = (id: number, status: string) => api.patch(`/leads/${id}`, { status });
+export const updateLead = (id: number, data: Partial<Lead> & { new_activity?: any }) => api.patch(`/leads/${id}`, data);
 export const deleteLead = (id: number) => api.delete(`/leads/${id}`);
 
 export const getVisitors = () => api.get('/visitors').then(res => res.data);

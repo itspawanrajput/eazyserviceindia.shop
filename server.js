@@ -113,6 +113,15 @@ async function startServer() {
     if (!hasCustomData) {
         await db.exec("ALTER TABLE leads ADD COLUMN custom_data TEXT DEFAULT '{}'");
     }
+    // Migration: Add CRM columns for Lead Management
+    const hasAssignedTo = tableInfo.some(col => col.name === 'assigned_to');
+    if (!hasAssignedTo) {
+        await db.exec("ALTER TABLE leads ADD COLUMN assigned_to TEXT DEFAULT 'Unassigned'");
+        await db.exec("ALTER TABLE leads ADD COLUMN quality_score TEXT");
+        await db.exec("ALTER TABLE leads ADD COLUMN notes TEXT");
+        await db.exec("ALTER TABLE leads ADD COLUMN activities TEXT DEFAULT '[]'");
+        console.log("[MIGRATE] Added CRM columns (assigned_to, quality_score, notes, activities) to leads table");
+    }
     // Admin User Seeding Configuration
     const adminUsername = process.env.ADMIN_USER || "admin";
     const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
@@ -313,9 +322,17 @@ async function startServer() {
     });
     app.post("/api/leads", leadsLimiter, async (req, res) => {
         const { name, phone, email, location, service_type, message, preferred_date, preferred_time, source, ...rest } = req.body;
+        // Capture IP Address for CRM Location
+        const ip_address = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
         // Store all unpredictable ad-hoc dynamic fields as a JSON string
-        const custom_data = Object.keys(rest).length > 0 ? JSON.stringify(rest) : "{}";
-        await db.run("INSERT INTO leads (name, phone, email, location, service_type, message, preferred_date, preferred_time, source, custom_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [name, phone, email, location, service_type, message, preferred_date, preferred_time, source || 'unknown', custom_data]);
+        // Inject IP Address into custom_data
+        const customDataObj = { ...rest, ip_address };
+        const custom_data = JSON.stringify(customDataObj);
+        // Initial activity log
+        const initialActivity = JSON.stringify([
+            { event: 'Lead Created', details: `Received from ${source || 'unknown'} via ${ip_address}`, date: new Date().toISOString() }
+        ]);
+        await db.run("INSERT INTO leads (name, phone, email, location, service_type, message, preferred_date, preferred_time, source, custom_data, activities) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [name, phone, email, location, service_type, message, preferred_date, preferred_time, source || 'unknown', custom_data, initialActivity]);
         res.json({ message: "Lead saved" });
         // Fire & Forget Email Notification (runs asynchronously so the user doesn't wait)
         (async () => {
@@ -333,16 +350,34 @@ async function startServer() {
                         },
                     });
                     // Unpack custom data for nice formatting in the email
-                    let customFieldsHtml = '';
+                    let trackingHtml = '';
                     const parsedCustom = JSON.parse(custom_data);
-                    if (Object.keys(parsedCustom).length > 0) {
+                    // Separate standard extra fields from true marketing attribution
+                    const trackingKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'gclid', 'fbclid', 'referrer', 'landing_page', 'ip_address'];
+                    const attributionData = Object.entries(parsedCustom).filter(([k]) => trackingKeys.includes(k) && parsedCustom[k]);
+                    const otherCustomData = Object.entries(parsedCustom).filter(([k]) => !trackingKeys.includes(k) && parsedCustom[k]);
+                    if (attributionData.length > 0) {
+                        trackingHtml = `
+              <h3 style="color: #475569; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; margin-top: 20px;">Attribution & Tracking</h3>
+              <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                ${attributionData.map(([k, v]) => `
+                  <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 8px 0; font-weight: bold; width: 30%; color: #64748b; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;">${k.replace(/_/g, ' ')}</td>
+                    <td style="padding: 8px 0; color: #0f172a; word-break: break-all;">${v}</td>
+                  </tr>
+                `).join('')}
+              </table>
+            `;
+                    }
+                    let customFieldsHtml = '';
+                    if (otherCustomData.length > 0) {
                         customFieldsHtml = `
-              <h3 style="color: #475569; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; margin-top: 20px;">Additional Details</h3>
-              <table style="width: 100%; border-collapse: collapse;">
-                ${Object.entries(parsedCustom).map(([k, v]) => `
-                  <tr>
-                    <td style="padding: 8px 0; font-weight: bold; width: 40%; color: #64748b; text-transform: capitalize;">${k.replace(/_/g, ' ')}</td>
-                    <td style="padding: 8px 0; color: #0f172a;">${v || '-'}</td>
+              <h3 style="color: #475569; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; margin-top: 20px;">Additional Fields</h3>
+              <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                ${otherCustomData.map(([k, v]) => `
+                  <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 8px 0; font-weight: bold; width: 30%; color: #64748b; text-transform: capitalize;">${k.replace(/_/g, ' ')}</td>
+                    <td style="padding: 8px 0; color: #0f172a;">${v}</td>
                   </tr>
                 `).join('')}
               </table>
@@ -353,37 +388,40 @@ async function startServer() {
                         to: settings.notificationEmail,
                         subject: `🌟 New Lead: ${name} - ${service_type || 'General Inquiry'}`,
                         html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8fafc; border-radius: 12px;">
-                <h2 style="color: #2563eb; margin-top: 0;">New Website Lead Received</h2>
+              <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8fafc; border-radius: 12px;">
+                <div style="background-color: #2563eb; padding: 20px; border-radius: 12px 12px 0 0; text-align: center;">
+                  <h2 style="color: #ffffff; margin: 0; font-size: 24px;">New Website Lead Received</h2>
+                </div>
                 
-                <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+                <div style="background-color: #ffffff; padding: 24px; border-radius: 0 0 12px 12px; border: 1px solid #e2e8f0; border-top: none; shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
                   <h3 style="color: #475569; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; margin-top: 0;">Contact Information</h3>
-                  <table style="width: 100%; border-collapse: collapse;">
-                    <tr><td style="padding: 8px 0; font-weight: bold; width: 40%; color: #64748b;">Name:</td><td style="padding: 8px 0; color: #0f172a;">${name}</td></tr>
-                    <tr><td style="padding: 8px 0; font-weight: bold; width: 40%; color: #64748b;">Phone:</td><td style="padding: 8px 0; color: #0f172a;"><a href="tel:${phone}">${phone}</a></td></tr>
-                    <tr><td style="padding: 8px 0; font-weight: bold; width: 40%; color: #64748b;">Email:</td><td style="padding: 8px 0; color: #0f172a;">${email || '-'}</td></tr>
-                    <tr><td style="padding: 8px 0; font-weight: bold; width: 40%; color: #64748b;">Location:</td><td style="padding: 8px 0; color: #0f172a;">${location}</td></tr>
+                  <table style="width: 100%; border-collapse: collapse; font-size: 15px;">
+                    <tr><td style="padding: 8px 0; font-weight: bold; width: 30%; color: #64748b;">Name:</td><td style="padding: 8px 0; color: #0f172a; font-weight: 600;">${name}</td></tr>
+                    <tr><td style="padding: 8px 0; font-weight: bold; width: 30%; color: #64748b;">Phone:</td><td style="padding: 8px 0; color: #0f172a;"><a href="tel:${phone}" style="color: #2563eb; text-decoration: none; font-weight: 600;">${phone}</a></td></tr>
+                    <tr><td style="padding: 8px 0; font-weight: bold; width: 30%; color: #64748b;">Email:</td><td style="padding: 8px 0; color: #0f172a;">${email || '-'}</td></tr>
+                    <tr><td style="padding: 8px 0; font-weight: bold; width: 30%; color: #64748b;">Location:</td><td style="padding: 8px 0; color: #0f172a;">${location}</td></tr>
                   </table>
 
                   <h3 style="color: #475569; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; margin-top: 20px;">Inquiry Details</h3>
-                  <table style="width: 100%; border-collapse: collapse;">
-                    <tr><td style="padding: 8px 0; font-weight: bold; width: 40%; color: #64748b;">Service Type:</td><td style="padding: 8px 0; color: #2563eb; font-weight: bold;">${service_type || 'General'}</td></tr>
-                    <tr><td style="padding: 8px 0; font-weight: bold; width: 40%; color: #64748b;">Source Form:</td><td style="padding: 8px 0; color: #0f172a;">${source || 'Unknown'}</td></tr>
-                    <tr><td style="padding: 8px 0; font-weight: bold; width: 40%; color: #64748b;">Preference:</td><td style="padding: 8px 0; color: #0f172a;">${preferred_date || 'Any Date'} at ${preferred_time || 'Any Time'}</td></tr>
+                  <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                    <tr><td style="padding: 8px 0; font-weight: bold; width: 30%; color: #64748b;">Service:</td><td style="padding: 8px 0; color: #2563eb; font-weight: bold;">${service_type || 'General'}</td></tr>
+                    <tr><td style="padding: 8px 0; font-weight: bold; width: 30%; color: #64748b;">Form Name:</td><td style="padding: 8px 0; color: #0f172a;">${source || 'Unknown'}</td></tr>
+                    <tr><td style="padding: 8px 0; font-weight: bold; width: 30%; color: #64748b;">Preference:</td><td style="padding: 8px 0; color: #0f172a;">${preferred_date || 'Any Date'} at ${preferred_time || 'Any Time'}</td></tr>
                   </table>
-
-                  ${customFieldsHtml}
 
                   ${message ? `
                   <h3 style="color: #475569; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; margin-top: 20px;">Customer Message</h3>
-                  <div style="background-color: #f1f5f9; padding: 15px; border-radius: 8px; color: #334155; font-style: italic;">
+                  <div style="background-color: #f8fafc; border-left: 4px solid #2563eb; padding: 16px; border-radius: 0 8px 8px 0; color: #334155; font-style: italic; font-size: 15px;">
                     "${message}"
                   </div>
                   ` : ''}
+
+                  ${trackingHtml}
+                  ${customFieldsHtml}
                 </div>
                 
-                <div style="text-align: center;">
-                  <a href="${settings.siteUrl || 'https://acgoa.com'}/admin" style="display: inline-block; background-color: #0f172a; color: #ffffff; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 8px;">View in CRM</a>
+                <div style="text-align: center; margin-top: 24px;">
+                  <a href="${settings.siteUrl || 'https://acgoa.com'}/admin" style="display: inline-block; background-color: #0f172a; color: #ffffff; padding: 14px 28px; text-decoration: none; font-weight: bold; border-radius: 8px; font-size: 16px;">View in CRM</a>
                 </div>
               </div>
             `
@@ -456,9 +494,59 @@ async function startServer() {
         })();
     });
     app.patch("/api/leads/:id", authenticate, async (req, res) => {
-        const { status } = req.body;
-        await db.run("UPDATE leads SET status = ? WHERE id = ?", [status, req.params.id]);
-        res.json({ message: "Lead updated" });
+        const { status, assigned_to, quality_score, notes, new_activity } = req.body;
+        try {
+            // First get current lead to append to activities array
+            const lead = await db.get("SELECT activities FROM leads WHERE id = ?", [req.params.id]);
+            let activities = [];
+            try {
+                activities = JSON.parse(lead.activities || '[]');
+            }
+            catch (e) {
+                activities = [];
+            }
+            if (new_activity) {
+                activities.push({
+                    event: new_activity.event,
+                    details: new_activity.details,
+                    date: new Date().toISOString()
+                });
+            }
+            // Build dynamic update query based on provided fields
+            const updates = [];
+            const values = [];
+            if (status !== undefined) {
+                updates.push("status = ?");
+                values.push(status);
+            }
+            if (assigned_to !== undefined) {
+                updates.push("assigned_to = ?");
+                values.push(assigned_to);
+            }
+            if (quality_score !== undefined) {
+                updates.push("quality_score = ?");
+                values.push(quality_score);
+            }
+            if (notes !== undefined) {
+                updates.push("notes = ?");
+                values.push(notes);
+            }
+            // Always update activities if we have new ones
+            if (new_activity) {
+                updates.push("activities = ?");
+                values.push(JSON.stringify(activities));
+            }
+            if (updates.length > 0) {
+                const query = `UPDATE leads SET ${updates.join(', ')} WHERE id = ?`;
+                values.push(req.params.id);
+                await db.run(query, values);
+            }
+            res.json({ message: "Lead updated" });
+        }
+        catch (error) {
+            console.error("Error updating lead:", error);
+            res.status(500).json({ error: "Failed to update lead" });
+        }
     });
     app.delete("/api/leads/:id", authenticate, async (req, res) => {
         await db.run("DELETE FROM leads WHERE id = ?", [req.params.id]);

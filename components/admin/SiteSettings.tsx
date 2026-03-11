@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Globe, Layers, Image as ImageIcon, Upload, Trash2, Copy, Check,
   ChevronUp, ChevronDown, Eye, EyeOff, Save, Loader2, CheckCircle,
-  AlertCircle, Video, FileText, X, Edit3, ExternalLink
+  AlertCircle, Video, FileText, X, Edit3, ExternalLink, Mail, Info
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
@@ -29,7 +29,7 @@ const SECTION_LABELS: Record<string, string> = {
   'faq': '❓ FAQ',
 };
 
-type Tab = 'sections' | 'branding' | 'media';
+type Tab = 'sections' | 'branding' | 'media' | 'email';
 
 interface MediaFile {
   name: string;
@@ -59,6 +59,11 @@ const SiteSettings: React.FC = () => {
     siteTagline: '',
     logoUrl: '',
     faviconUrl: '',
+    smtpHost: '',
+    smtpPort: '465',
+    smtpUser: '',
+    smtpPassword: '',
+    notificationEmail: ''
   });
   const faviconInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -174,18 +179,13 @@ const SiteSettings: React.FC = () => {
     }
   };
 
-  const saveBranding = async () => {
+  const saveSettings = async () => {
     setSaving(true);
     try {
-      await updateSettings({
-        siteName: settings.siteName,
-        siteTagline: settings.siteTagline,
-        logoUrl: settings.logoUrl,
-        faviconUrl: settings.faviconUrl,
-      });
-      showStatus('success', 'Branding saved successfully!');
+      await updateSettings(settings);
+      showStatus('success', 'Settings saved successfully!');
     } catch (err) {
-      showStatus('error', 'Failed to save branding');
+      showStatus('error', 'Failed to save settings');
     } finally {
       setSaving(false);
     }
@@ -260,6 +260,7 @@ const SiteSettings: React.FC = () => {
     { id: 'sections', label: 'Sections', icon: Layers },
     { id: 'branding', label: 'Logo & Branding', icon: Globe },
     { id: 'media', label: 'Media Library', icon: ImageIcon },
+    { id: 'email', label: 'Email Configuration', icon: Mail },
   ];
 
   return (
@@ -423,7 +424,7 @@ const SiteSettings: React.FC = () => {
                 <h2 className="font-bold text-slate-900">Logo & Branding</h2>
               </div>
               <button
-                onClick={saveBranding}
+                onClick={saveSettings}
                 disabled={saving}
                 className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all disabled:opacity-50"
               >
@@ -551,6 +552,109 @@ const SiteSettings: React.FC = () => {
                   />
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ EMAIL TAB ═══ */}
+      {activeTab === 'email' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Mail className="w-5 h-5 text-indigo-600" />
+                <h2 className="font-bold text-slate-900">Email Configuration</h2>
+              </div>
+              <button
+                onClick={saveSettings}
+                disabled={saving}
+                className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all disabled:opacity-50"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Save Email Settings
+              </button>
+            </div>
+
+            <div className="p-8 space-y-8">
+              {/* Notification Email */}
+              <div className="bg-indigo-50/50 rounded-2xl p-6 border border-indigo-100">
+                <h3 className="text-lg font-black text-slate-900 mb-2">Notification Email</h3>
+                <p className="text-sm font-medium text-slate-600 mb-4">Where should we send new leads and booking notifications?</p>
+                <input
+                  type="email"
+                  className="w-full md:w-1/2 p-3.5 rounded-xl bg-white border border-indigo-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-slate-900 font-medium"
+                  placeholder="e.g., admin@yourdomain.com"
+                  value={settings.notificationEmail || ''}
+                  onChange={(e) => setSettings((prev: any) => ({ ...prev, notificationEmail: e.target.value }))}
+                />
+              </div>
+
+              {/* SMTP Settings */}
+              <div>
+                <h3 className="text-lg font-black text-slate-900 mb-2">SMTP Server Settings</h3>
+                <p className="text-sm font-medium text-slate-600 mb-6">Configure your email provider to send outgoing notification emails.</p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">SMTP Host</label>
+                    <input
+                      type="text"
+                      className="w-full p-3.5 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-slate-900 font-medium"
+                      placeholder="e.g., smtp.gmail.com"
+                      value={settings.smtpHost || ''}
+                      onChange={(e) => setSettings((prev: any) => ({ ...prev, smtpHost: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">SMTP Port</label>
+                     <select
+                       className="w-full p-3.5 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-slate-900 font-medium cursor-pointer"
+                       value={settings.smtpPort || '465'}
+                       onChange={(e) => setSettings((prev: any) => ({ ...prev, smtpPort: e.target.value }))}
+                     >
+                        <option value="465">465 (SSL/TLS - Recommended)</option>
+                        <option value="587">587 (STARTTLS)</option>
+                        <option value="25">25 (Unsecured)</option>
+                     </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">SMTP Username / Email</label>
+                    <input
+                      type="text"
+                      className="w-full p-3.5 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-slate-900 font-medium"
+                      placeholder="e.g., you@gmail.com"
+                      value={settings.smtpUser || ''}
+                      onChange={(e) => setSettings((prev: any) => ({ ...prev, smtpUser: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">SMTP Password</label>
+                    <input
+                      type="password"
+                      className="w-full p-3.5 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-slate-900 font-medium"
+                      placeholder="••••••••••••••••"
+                      value={settings.smtpPassword || ''}
+                      onChange={(e) => setSettings((prev: any) => ({ ...prev, smtpPassword: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-8 bg-blue-50/50 p-5 rounded-2xl border border-blue-100 flex items-start gap-4">
+                  <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-bold text-blue-900 mb-1">Using Gmail?</p>
+                    <p className="text-xs text-blue-700 mb-2">If you are using a Gmail account, you cannot use your standard password. You must generate an <strong>App Password</strong>.</p>
+                    <ol className="list-decimal list-inside text-xs text-blue-700 space-y-1">
+                      <li>Go to your Google Account Settings &gt; Security.</li>
+                      <li>Enable 2-Step Verification if it isn't already.</li>
+                      <li>Search for "App Passwords" and create a new one for "Mail".</li>
+                      <li>Paste the generated 16-character password into the <strong>SMTP Password</strong> field above.</li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
