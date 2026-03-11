@@ -82,82 +82,81 @@ const Header: React.FC = () => {
   return (
     <Editable id="header-section" type="section">
       <header className="sticky top-0 z-[100] bg-white border-b border-slate-200 shadow-sm transition-all duration-300">
-        <div className="max-w-[1550px] mx-auto px-4 md:px-6 h-16 md:h-24 flex items-center justify-between">
+        <div className="max-w-[1550px] mx-auto px-4 md:px-6 h-16 md:h-20 flex items-center justify-between">
         
         {/* 1. Logo Section */}
         <div 
-          className="flex items-center shrink-0 cursor-pointer group" 
+          className="flex items-center shrink-0 cursor-pointer group hover:opacity-90 transition-opacity" 
           onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})}
         >
           <Editable id="header-logo" type="image">
-            <div className="relative w-12 h-12 md:w-14 md:h-14 flex items-center justify-center mr-2">
+            <div className="relative w-10 h-10 md:w-12 md:h-12 flex items-center justify-center mr-3">
                <img 
                  src={siteSettings.logoUrl || "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=200&auto=format&fit=crop"} 
                  alt={siteSettings.siteName || "EazyService Logo"} 
-                 className="w-full h-full object-cover rounded-full border-2 border-slate-100 shadow-sm"
+                 className="w-full h-full object-cover rounded-full shadow-sm"
                  referrerPolicy="no-referrer"
                />
             </div>
           </Editable>
-          <div className="flex flex-col leading-none">
+          <div className="flex flex-col leading-tight justify-center mt-0.5">
             <Editable id="header-brand-name" type="text">
-              <span className="text-xl md:text-2xl font-black text-[#1A202C] tracking-tight">{siteSettings.siteName || "EazyService"}</span>
+              <span className="text-[20px] md:text-[22px] font-black text-slate-900 tracking-tight leading-none">{siteSettings.siteName || "EazyService"}</span>
             </Editable>
             <Editable id="header-brand-tagline" type="text">
-              <span className="text-[8px] md:text-[9px] font-bold text-blue-600 self-start uppercase tracking-wider">{siteSettings.siteTagline || "Expert AC Care"}</span>
+              <span className="text-[9px] md:text-[10px] font-bold text-blue-600 uppercase tracking-[0.15em] mt-1 leading-none block">{siteSettings.siteTagline || "Expert AC Care"}</span>
             </Editable>
           </div>
         </div>
 
-        {/* 2. Menu Options - Precisely in the middle of Logo and Search Bar */}
-        <nav className="hidden xl:flex items-center justify-center gap-8 flex-1 px-8">
+        {/* 2. Menu Options - Clean and evenly spaced */}
+        <nav className="hidden xl:flex items-center justify-center gap-7 lg:gap-10 flex-1 px-4">
           <Editable id="nav-item-1" type="button">
             <button 
               onClick={() => scrollTo(SectionID.INSTALL)} 
-              className="flex flex-col items-center justify-center text-[13px] font-bold text-slate-600 hover:text-blue-600 transition-colors leading-tight whitespace-nowrap"
+              className="text-[14px] font-bold text-slate-700 hover:text-blue-600 transition-colors whitespace-nowrap"
             >
-              <span>Installation/</span>
-              <span>Uninstallation</span>
+              Installation
             </button>
           </Editable>
           <Editable id="nav-item-2" type="button">
-            <button onClick={() => scrollTo(SectionID.CLEANING)} className="text-[14px] font-semibold text-slate-600 hover:text-blue-600 transition-colors whitespace-nowrap">Service</button>
+            <button onClick={() => scrollTo(SectionID.CLEANING)} className="text-[14px] font-bold text-slate-700 hover:text-blue-600 transition-colors whitespace-nowrap">Service</button>
           </Editable>
           <Editable id="nav-item-3" type="button">
-            <button onClick={() => scrollTo(SectionID.REPAIR)} className="text-[14px] font-semibold text-slate-600 hover:text-blue-600 transition-colors whitespace-nowrap">Repair</button>
+            <button onClick={() => scrollTo(SectionID.REPAIR)} className="text-[14px] font-bold text-slate-700 hover:text-blue-600 transition-colors whitespace-nowrap">Repair</button>
           </Editable>
           <Editable id="nav-item-4" type="button">
-            <button onClick={() => scrollTo(SectionID.GAS)} className="text-[14px] font-semibold text-slate-600 hover:text-blue-600 transition-colors whitespace-nowrap">Gas Charging</button>
+            <button onClick={() => scrollTo(SectionID.GAS)} className="text-[14px] font-bold text-slate-700 hover:text-blue-600 transition-colors whitespace-nowrap">Gas Charging</button>
           </Editable>
         </nav>
 
         {/* 3. Action Block - Search Bar + Dash + Book Now + Call */}
-        <div className="hidden md:flex items-center shrink-0 gap-3">
+        <div className="hidden md:flex items-center shrink-0 gap-3 lg:gap-4">
           
-          {/* Search Bar - Shifted 2px down as requested */}
-          <div className="w-[200px] lg:w-[240px] xl:w-[260px] translate-y-[2px]">
+          {/* Search Bar - Refined style */}
+          <div className="w-[180px] lg:w-[240px] xl:w-[280px]">
             <form onSubmit={handleSearch} className="relative group w-full flex items-center">
               <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                <Search className="w-4 h-4 text-slate-400" />
+                <Search className="w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
               </div>
               <input
                 type="text"
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
                 placeholder={searchValue ? "" : displayText}
-                className="w-full h-11 bg-[#F8FAFC] border border-slate-200 rounded-full pl-10 pr-4 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition-all placeholder:text-slate-400 text-[14px] typewriter-cursor font-medium shadow-sm leading-none"
+                className="w-full h-[44px] bg-slate-50 hover:bg-slate-100 border-2 border-slate-100 focus:border-blue-100 rounded-full pl-11 pr-4 focus:bg-white focus:ring-4 focus:ring-blue-50 outline-none transition-all placeholder:text-slate-400 text-[14px] typewriter-cursor font-semibold text-slate-700 shadow-sm leading-none"
               />
             </form>
           </div>
 
-          {/* Dash (Vertical Separator) - Left of Book Now */}
-          <div className="w-[1px] h-6 bg-slate-300 mx-1 shrink-0"></div>
+          {/* Dash (Vertical Separator) */}
+          <div className="hidden lg:block w-[1px] h-8 bg-slate-200 shrink-0 mx-1"></div>
 
           {/* Book Now Button */}
           <Editable id="header-book-now" type="button">
             <button 
               onClick={() => scrollTo('booking-form')}
-              className="h-11 bg-[#2D2D2D] text-white px-6 rounded-full font-bold text-[14px] hover:bg-black transition-all active:scale-95 shadow-md shrink-0"
+              className="h-[44px] bg-slate-900 text-white px-6 rounded-full font-bold text-[14px] hover:bg-black transition-all hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:scale-95 shrink-0"
             >
               Book Now
             </button>
@@ -167,9 +166,9 @@ const Header: React.FC = () => {
           <Editable id="header-call-btn" type="button">
             <a 
               href="tel:+919911481331" 
-              className="h-11 flex items-center gap-2 bg-[#FD3752] text-white px-5 rounded-full font-bold text-sm hover:bg-[#e02d46] transition-all shadow-lg active:scale-95 shrink-0"
+              className="h-[44px] flex items-center gap-2 bg-[#FD3752] text-white px-5 rounded-full font-bold text-[14px] hover:bg-[#E02D46] transition-all shadow-md hover:shadow-lg hover:shadow-red-500/20 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 shrink-0"
             >
-              <div className="bg-white/20 p-1 rounded-full shrink-0">
+              <div className="bg-white/20 p-1.5 rounded-full shrink-0">
                 <Phone className="w-3.5 h-3.5 fill-white text-white" />
               </div>
               <span className="whitespace-nowrap tracking-wide">+91 9911481331</span>
