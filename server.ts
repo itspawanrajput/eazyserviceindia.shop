@@ -501,7 +501,22 @@ async function startServer() {
                     <tr><td style="padding: 8px 0; font-weight: bold; width: 30%; color: #64748b;">Name:</td><td style="padding: 8px 0; color: #0f172a; font-weight: 600;">${name}</td></tr>
                     <tr><td style="padding: 8px 0; font-weight: bold; width: 30%; color: #64748b;">Phone:</td><td style="padding: 8px 0; color: #0f172a;"><a href="tel:${phone}" style="color: #2563eb; text-decoration: none; font-weight: 600;">${phone}</a></td></tr>
                     <tr><td style="padding: 8px 0; font-weight: bold; width: 30%; color: #64748b;">Email:</td><td style="padding: 8px 0; color: #0f172a;">${email || '-'}</td></tr>
-                    <tr><td style="padding: 8px 0; font-weight: bold; width: 30%; color: #64748b;">Location:</td><td style="padding: 8px 0; color: #0f172a;">${location}</td></tr>
+                    <tr>
+                      <td style="padding: 8px 0; font-weight: bold; width: 30%; color: #64748b;">Location:</td>
+                      <td style="padding: 8px 0; color: #0f172a;">
+                        ${location}
+                        ${parsedCustom.lat && parsedCustom.lng ? `
+                          <br/>
+                          <a href="https://www.google.com/maps/dir/?api=1&destination=${parsedCustom.lat},${parsedCustom.lng}" style="color: #2563eb; font-size: 12px; font-weight: bold; text-decoration: none; margin-top: 4px; display: inline-block;">📍 Get Directions</a>
+                        ` : ''}
+                      </td>
+                    </tr>
+                    ${parsedCustom.lat && parsedCustom.lng ? `
+                    <tr>
+                      <td style="padding: 8px 0; font-weight: bold; width: 30%; color: #64748b;">Coordinates:</td>
+                      <td style="padding: 8px 0; color: #64748b; font-size: 12px; font-family: monospace;">${parsedCustom.lat}, ${parsedCustom.lng}</td>
+                    </tr>
+                    ` : ''}
                   </table>
 
                   <h3 style="color: #475569; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; margin-top: 20px;">Inquiry Details</h3>

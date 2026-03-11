@@ -447,32 +447,52 @@ const LeadManagement: React.FC = () => {
                     <User className="w-4 h-4 text-blue-600" /> Contact Information
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Phone Number</p>
-                      <a href={`tel:${selectedLead.phone}`} className="text-sm font-bold text-blue-600 hover:underline">{selectedLead.phone}</a>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Email Address</p>
-                      {selectedLead.email ? (
-                        <a href={`mailto:${selectedLead.email}`} className="text-sm font-bold text-blue-600 hover:underline">{selectedLead.email}</a>
-                      ) : <span className="text-sm text-slate-500">Not provided</span>}
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Address / Location</p>
-                      <div className="flex items-start gap-2">
-                        <span className="text-sm text-slate-700 leading-snug">{selectedLead.location || 'Not provided'}</span>
-                        {selectedLead.location && (
-                          <a 
-                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedLead.location)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[10px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-0.5 shrink-0 mt-0.5"
-                          >
-                            <MapPin className="w-3 h-3" /> Directions
-                          </a>
-                        )}
-                      </div>
-                    </div>
+                    {(() => {
+                      let coords: { lat?: string, lng?: string } = {};
+                      try {
+                        if (selectedLead.custom_data) {
+                          const parsed = JSON.parse(selectedLead.custom_data);
+                          if (parsed.lat && parsed.lng) coords = { lat: parsed.lat, lng: parsed.lng };
+                        }
+                      } catch(e) {}
+                      
+                      return (
+                        <>
+                          <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Phone Number</p>
+                            <a href={`tel:${selectedLead.phone}`} className="text-sm font-bold text-blue-600 hover:underline">{selectedLead.phone}</a>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Email Address</p>
+                            {selectedLead.email ? (
+                              <a href={`mailto:${selectedLead.email}`} className="text-sm font-bold text-blue-600 hover:underline">{selectedLead.email}</a>
+                            ) : <span className="text-sm text-slate-500">Not provided</span>}
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Address / Location</p>
+                            <div className="flex items-start gap-2">
+                              <span className="text-sm text-slate-700 leading-snug">{selectedLead.location || 'Not provided'}</span>
+                              {(selectedLead.location || (coords.lat && coords.lng)) && (
+                                <a 
+                                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(coords.lat && coords.lng ? `${coords.lat},${coords.lng}` : selectedLead.location)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-0.5 shrink-0 mt-0.5"
+                                >
+                                  <MapPin className="w-3 h-3" /> Directions
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                          {coords.lat && coords.lng && (
+                            <div>
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Coordinates</p>
+                              <span className="text-[10px] font-mono font-bold text-slate-500">{coords.lat}, {coords.lng}</span>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                     <div>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Service Type</p>
                       <span className="text-sm font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded inline-block">{selectedLead.service_type}</span>

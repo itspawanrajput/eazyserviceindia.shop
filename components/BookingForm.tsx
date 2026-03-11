@@ -94,6 +94,10 @@ const BookingForm: React.FC = () => {
     setSubmitStatus('idle');
     try {
       const payload: any = { source: 'Booking Form', ...trackingData };
+      if (coords) {
+        payload.lat = coords.lat;
+        payload.lng = coords.lng;
+      }
       Object.keys(formData).forEach(key => {
         payload[key] = formData[key];
       });

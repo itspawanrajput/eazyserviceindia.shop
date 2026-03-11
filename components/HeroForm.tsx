@@ -102,6 +102,10 @@ const HeroForm: React.FC = () => {
     try {
       // Map form data dynamically
       const payload: any = { source: 'Hero Form', ...trackingData };
+      if (coords) {
+        payload.lat = coords.lat;
+        payload.lng = coords.lng;
+      }
       Object.keys(formData).forEach(key => {
         payload[key] = formData[key];
       });
