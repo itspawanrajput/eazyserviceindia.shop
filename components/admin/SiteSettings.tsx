@@ -54,7 +54,9 @@ const SiteSettings: React.FC = () => {
     siteName: '',
     siteTagline: '',
     logoUrl: '',
+    faviconUrl: '',
   });
+  const faviconInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   // Media state
@@ -148,6 +150,17 @@ const SiteSettings: React.FC = () => {
     }
   };
 
+  const handleFaviconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const { url } = await uploadFile(file);
+      setSettings((prev: any) => ({ ...prev, faviconUrl: url }));
+    } catch (err) {
+      showStatus('error', 'Failed to upload favicon');
+    }
+  };
+
   const saveBranding = async () => {
     setSaving(true);
     try {
@@ -155,6 +168,7 @@ const SiteSettings: React.FC = () => {
         siteName: settings.siteName,
         siteTagline: settings.siteTagline,
         logoUrl: settings.logoUrl,
+        faviconUrl: settings.faviconUrl,
       });
       showStatus('success', 'Branding saved successfully!');
     } catch (err) {
@@ -198,7 +212,8 @@ const SiteSettings: React.FC = () => {
   };
 
   const handleCopyUrl = (url: string) => {
-    navigator.clipboard.writeText(window.location.origin + url);
+    const fullUrl = url.startsWith('http') ? url : window.location.origin + url;
+    navigator.clipboard.writeText(fullUrl);
     setCopiedUrl(url);
     setTimeout(() => setCopiedUrl(null), 2000);
   };
@@ -409,6 +424,48 @@ const SiteSettings: React.FC = () => {
                         onChange={(e) => setSettings((prev: any) => ({ ...prev, logoUrl: e.target.value }))}
                       />
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Favicon Upload */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-3">Favicon</label>
+                <div className="flex items-center gap-4">
+                  {settings.faviconUrl ? (
+                    <div className="relative group">
+                      <div className="w-16 h-16 rounded-xl border-2 border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center">
+                        <img src={settings.faviconUrl} alt="Favicon" className="max-w-full max-h-full object-contain p-1" referrerPolicy="no-referrer" />
+                      </div>
+                      <button
+                        onClick={() => setSettings((prev: any) => ({ ...prev, faviconUrl: '' }))}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-16 h-16 rounded-xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 bg-slate-50">
+                      <Globe className="w-6 h-6" />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <input type="file" ref={faviconInputRef} onChange={handleFaviconUpload} className="hidden" accept="image/*,.ico,.svg" />
+                    <button
+                      onClick={() => faviconInputRef.current?.click()}
+                      className="flex items-center gap-2 bg-slate-100 text-slate-700 px-4 py-2 rounded-lg font-bold text-sm hover:bg-slate-200 transition-all mb-2"
+                    >
+                      <Upload className="w-4 h-4" />
+                      Upload Favicon
+                    </button>
+                    <input
+                      type="text"
+                      className="w-full p-2.5 rounded-lg bg-slate-50 border border-slate-100 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                      placeholder="Or paste favicon URL..."
+                      value={settings.faviconUrl || ''}
+                      onChange={(e) => setSettings((prev: any) => ({ ...prev, faviconUrl: e.target.value }))}
+                    />
+                    <p className="text-[10px] text-slate-400 font-medium mt-1">Recommended: 32×32px or 64×64px ICO/PNG file.</p>
                   </div>
                 </div>
               </div>

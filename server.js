@@ -548,7 +548,7 @@ async function startServer() {
                 const stat = fs.statSync(path.join(uploadsDir, name));
                 return {
                     name,
-                    url: `/api/media?f=${name}`,
+                    url: `/api/media?f=${encodeURIComponent(name)}`,
                     size: stat.size,
                     modified: stat.mtime,
                     isVideo: /\.(mp4|webm|mov)$/i.test(name)
