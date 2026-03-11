@@ -131,8 +131,32 @@ const PublicWebsite: React.FC<{ isEditMode?: boolean }> = ({ isEditMode = false 
 };
 
 
+import { getSettings } from './services/api';
+
 const App: React.FC = () => {
   useVisitorTracking();
+
+  useEffect(() => {
+    getSettings().then((settings: any) => {
+      // Set favicon
+      if (settings.faviconUrl) {
+        let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+        if (!link) {
+          link = document.createElement('link');
+          link.rel = 'icon';
+          document.head.appendChild(link);
+        }
+        link.href = settings.faviconUrl;
+      }
+      
+      // Set document title
+      if (settings.siteName) {
+        document.title = settings.siteTagline 
+          ? `${settings.siteName} | ${settings.siteTagline}`
+          : settings.siteName;
+      }
+    }).catch(console.error);
+  }, []);
 
   return (
     <Router>
