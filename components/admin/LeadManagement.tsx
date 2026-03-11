@@ -88,20 +88,46 @@ const LeadManagement: React.FC = () => {
   const exportToCSV = () => {
     const csvEscape = (val: string) => `"${(val || '').replace(/"/g, '""')}"`;
 
-    const headers = ['Name', 'Phone', 'Email', 'Location', 'Service', 'Source', 'Message', 'Status', 'Created At', 'Preferred Date', 'Preferred Time'];
-    const rows = leads.map(l => [
-      csvEscape(l.name),
-      csvEscape(l.phone),
-      csvEscape(l.email),
-      csvEscape(l.location),
-      csvEscape(l.service_type),
-      csvEscape(l.source || 'Unknown'),
-      csvEscape(l.message),
-      csvEscape(l.status),
-      csvEscape(new Date(l.created_at).toLocaleString()),
-      csvEscape(l.preferred_date || ''),
-      csvEscape(l.preferred_time || '')
-    ]);
+    const headers = [
+      'ID', 'Name', 'Phone', 'Email', 'Location', 'Service', 'Source', 
+      'Message', 'Status', 'Quality Score', 'Assigned To', 'Created At', 
+      'Pref Date', 'Pref Time', 'Campaign', 'Medium', 'Term', 'GCLID', 
+      'FBCLID', 'Landing Page', 'Referrer', 'IP Address', 'Browser', 
+      'OS', 'Device Type'
+    ];
+    
+    const rows = leads.map(l => {
+      let custom = {};
+      try { custom = JSON.parse(l.custom_data || '{}'); } catch(e) {}
+      
+      return [
+        csvEscape(String(l.id)),
+        csvEscape(l.name),
+        csvEscape(l.phone),
+        csvEscape(l.email),
+        csvEscape(l.location),
+        csvEscape(l.service_type),
+        csvEscape(l.source || 'Unknown'),
+        csvEscape(l.message),
+        csvEscape(l.status),
+        csvEscape(l.quality_score || ''),
+        csvEscape(l.assigned_to || ''),
+        csvEscape(new Date(l.created_at).toLocaleString()),
+        csvEscape(l.preferred_date || ''),
+        csvEscape(l.preferred_time || ''),
+        csvEscape((custom as any).utm_campaign || ''),
+        csvEscape((custom as any).utm_medium || ''),
+        csvEscape((custom as any).utm_term || ''),
+        csvEscape((custom as any).gclid || ''),
+        csvEscape((custom as any).fbclid || ''),
+        csvEscape((custom as any).landing_page || ''),
+        csvEscape((custom as any).referrer || ''),
+        csvEscape((custom as any).ip_address || ''),
+        csvEscape((custom as any).browser || ''),
+        csvEscape((custom as any).os || ''),
+        csvEscape((custom as any).device_type || '')
+      ];
+    });
 
     const csvContent = [headers.map(csvEscape), ...rows].map(e => e.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -513,7 +539,7 @@ const LeadManagement: React.FC = () => {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                           <div>
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">IP Address</p>
-                            <span className="text-xs font-bold font-mono text-slate-700">{parsedData.ip_address || '-'}</span>
+                            <span className="text-xs font-bold font-mono text-slate-700 break-all">{parsedData.ip_address || '-'}</span>
                           </div>
                           <div>
                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Device Form Factor</p>
