@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Globe, Layers, Image as ImageIcon, Upload, Trash2, Copy, Check,
   ChevronUp, ChevronDown, Eye, EyeOff, Save, Loader2, CheckCircle,
-  AlertCircle, Video, FileText, X
+  AlertCircle, Video, FileText, X, Edit3, ExternalLink
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import {
   getSettings, updateSettings, getPageData, saveDraft, publishPage,
   uploadFile, getMediaList, deleteMedia
@@ -47,6 +48,9 @@ const SiteSettings: React.FC = () => {
   // Sections state
   const [sectionOrder, setSectionOrder] = useState<string[]>(DEFAULT_SECTION_ORDER);
   const [hiddenSections, setHiddenSections] = useState<string[]>([]);
+  const [sectionLabels, setSectionLabels] = useState<Record<string, string>>({});
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  const [tempLabel, setTempLabel] = useState("");
   const [pageData, setPageData] = useState<any>({});
 
   // Branding state
@@ -92,6 +96,9 @@ const SiteSettings: React.FC = () => {
       if (resolved._hiddenSections) {
         setHiddenSections(resolved._hiddenSections);
       }
+      if (resolved._sectionLabels) {
+        setSectionLabels(resolved._sectionLabels);
+      }
     } catch (err) {
       console.error('Failed to load settings', err);
     } finally {
@@ -119,6 +126,11 @@ const SiteSettings: React.FC = () => {
     );
   };
 
+  const handleSaveLabel = (id: string) => {
+    setSectionLabels(prev => ({ ...prev, [id]: tempLabel }));
+    setEditingSectionId(null);
+  };
+
   const saveSections = async () => {
     setSaving(true);
     try {
@@ -126,6 +138,7 @@ const SiteSettings: React.FC = () => {
         ...pageData,
         _sectionOrder: sectionOrder,
         _hiddenSections: hiddenSections,
+        _sectionLabels: sectionLabels,
       };
       await saveDraft('home', newPageData);
       await publishPage('home');
@@ -307,6 +320,9 @@ const SiteSettings: React.FC = () => {
             <div className="p-6 space-y-2">
               {sectionOrder.map((id, index) => {
                 const isHidden = hiddenSections.includes(id);
+                const isEditing = editingSectionId === id;
+                const currentLabel = sectionLabels[id] || SECTION_LABELS[id] || id;
+
                 return (
                   <div
                     key={id}
@@ -314,13 +330,55 @@ const SiteSettings: React.FC = () => {
                       isHidden ? 'bg-slate-50 border-slate-100 opacity-60' : 'bg-white border-slate-200 hover:border-blue-200'
                     }`}
                   >
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4 flex-1">
                       <span className="text-xs font-black text-slate-300 w-6 text-center">{index + 1}</span>
-                      <span className={`font-bold text-sm ${isHidden ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
-                        {SECTION_LABELS[id] || id}
-                      </span>
+                      
+                      {isEditing ? (
+                        <div className="flex items-center gap-2 flex-1 max-w-sm">
+                          <input 
+                            type="text" 
+                            className="w-full px-3 py-1.5 text-sm font-bold text-slate-900 bg-white border-2 border-blue-500 rounded-lg outline-none"
+                            value={tempLabel}
+                            onChange={(e) => setTempLabel(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSaveLabel(id)}
+                            autoFocus
+                          />
+                          <button onClick={() => handleSaveLabel(id)} className="p-1.5 bg-green-50 text-green-600 rounded-md hover:bg-green-100">
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => setEditingSectionId(null)} className="p-1.5 bg-red-50 text-red-600 rounded-md hover:bg-red-100">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <span className={`font-bold text-sm ${isHidden ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                            {currentLabel}
+                          </span>
+                          <button 
+                            onClick={() => { setEditingSectionId(id); setTempLabel(currentLabel); }}
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors opacity-0 group-hover:opacity-100 md:opacity-100"
+                            title="Rename Section"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
                     </div>
+                    
                     <div className="flex items-center gap-1.5">
+                      <Link
+                        to={`/edit#${id}`}
+                        target="_blank"
+                        className="flex items-center gap-1.5 px-3 py-1.5 mr-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-colors"
+                        title="Edit content in Visual Builder"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        Edit Content
+                      </Link>
+                      
+                      <div className="w-[1px] h-6 bg-slate-200 mx-1"></div>
+
                       <button
                         onClick={() => moveSection(index, 'up')}
                         disabled={index === 0}
