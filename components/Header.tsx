@@ -5,6 +5,7 @@ import { KEYWORD_MAPPING, PLACEHOLDERS } from '../constants';
 import { SectionID } from '../types';
 
 import Editable from '../src/components/Editable';
+import { getSettings } from '../services/api';
 
 const Header: React.FC = () => {
   const [searchValue, setSearchValue] = useState("");
@@ -12,6 +13,11 @@ const Header: React.FC = () => {
   const [displayText, setDisplayText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [siteSettings, setSiteSettings] = useState<any>({});
+
+  useEffect(() => {
+    getSettings().then(setSiteSettings).catch(console.error);
+  }, []);
 
   // Typewriter effect for animated search bar placeholder
   useEffect(() => {
@@ -86,8 +92,8 @@ const Header: React.FC = () => {
           <Editable id="header-logo" type="image">
             <div className="relative w-12 h-12 md:w-14 md:h-14 flex items-center justify-center mr-2">
                <img 
-                 src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=200&auto=format&fit=crop" 
-                 alt="EazyService Logo" 
+                 src={siteSettings.logoUrl || "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=200&auto=format&fit=crop"} 
+                 alt={siteSettings.siteName || "EazyService Logo"} 
                  className="w-full h-full object-cover rounded-full border-2 border-slate-100 shadow-sm"
                  referrerPolicy="no-referrer"
                />
@@ -95,10 +101,10 @@ const Header: React.FC = () => {
           </Editable>
           <div className="flex flex-col leading-none">
             <Editable id="header-brand-name" type="text">
-              <span className="text-xl md:text-2xl font-black text-[#1A202C] tracking-tight">EazyService</span>
+              <span className="text-xl md:text-2xl font-black text-[#1A202C] tracking-tight">{siteSettings.siteName || "EazyService"}</span>
             </Editable>
             <Editable id="header-brand-tagline" type="text">
-              <span className="text-[8px] md:text-[9px] font-bold text-blue-600 self-start uppercase tracking-wider">Expert AC Care</span>
+              <span className="text-[8px] md:text-[9px] font-bold text-blue-600 self-start uppercase tracking-wider">{siteSettings.siteTagline || "Expert AC Care"}</span>
             </Editable>
           </div>
         </div>

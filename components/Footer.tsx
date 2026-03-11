@@ -2,8 +2,15 @@
 import React from 'react';
 import { Phone, Mail, MapPin, Clock, Facebook, Instagram, ArrowUpRight, Zap } from 'lucide-react';
 import Editable from '../src/components/Editable';
+import { getSettings } from '../services/api';
 
 const Footer: React.FC = () => {
+  const [siteSettings, setSiteSettings] = React.useState<any>({});
+
+  React.useEffect(() => {
+    getSettings().then(setSiteSettings).catch(console.error);
+  }, []);
+
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
   return (
@@ -48,15 +55,15 @@ const Footer: React.FC = () => {
               <Editable id="footer-logo" type="image">
                 <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center overflow-hidden shadow-lg">
                   <img
-                    src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=200&auto=format&fit=crop"
-                    alt="EazyService Logo"
+                    src={siteSettings.logoUrl || "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=200&auto=format&fit=crop"}
+                    alt={siteSettings.siteName || "EazyService Logo"}
                     className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"
                   />
                 </div>
               </Editable>
               <Editable id="footer-brand-name" type="text">
-                <span className="text-xl font-black tracking-tight">EazyService</span>
+                <span className="text-xl font-black tracking-tight">{siteSettings.siteName || "EazyService"}</span>
               </Editable>
             </div>
             <Editable id="footer-brand-desc" type="text">
@@ -168,7 +175,7 @@ const Footer: React.FC = () => {
                   <Phone className="w-4 h-4 text-blue-400" />
                 </div>
                 <Editable id="footer-phone" type="text">
-                  <a href="tel:+919911481331" className="text-sm text-slate-300 hover:text-white transition-colors font-medium">+91 9911481331</a>
+                  <a href={`tel:${siteSettings.contactPhone?.replace(/\s/g, '') || '+919911481331'}`} className="text-sm text-slate-300 hover:text-white transition-colors font-medium">{siteSettings.contactPhone || "+91 9911481331"}</a>
                 </Editable>
               </li>
               <li className="flex items-center group">
@@ -176,7 +183,7 @@ const Footer: React.FC = () => {
                   <Mail className="w-4 h-4 text-blue-400" />
                 </div>
                 <Editable id="footer-email" type="text">
-                  <a href="mailto:info@eazyservice.in" className="text-sm text-slate-300 hover:text-white transition-colors font-medium">info@eazyservice.in</a>
+                  <a href={`mailto:${siteSettings.contactEmail || 'info@eazyservice.in'}`} className="text-sm text-slate-300 hover:text-white transition-colors font-medium">{siteSettings.contactEmail || "info@eazyservice.in"}</a>
                 </Editable>
               </li>
               <li className="flex items-start group">
