@@ -391,7 +391,7 @@ async function startServer() {
           const transporter = nodemailer.createTransport({
             host: settings.smtpHost,
             port: parseInt(settings.smtpPort || '465', 10),
-            secure: settings.smtpPort === '465', // true for 465, false for other ports
+            secure: String(settings.smtpPort) === '465', // true for 465, false for other ports
             auth: {
               user: settings.smtpUser,
               pass: settings.smtpPassword,
