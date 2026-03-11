@@ -50,6 +50,7 @@ export interface Lead {
 
 export const getSettings = () => api.get('/settings').then(res => res.data);
 export const updateSettings = (settings: any) => api.post('/settings', { settings });
+export const testEmailConfig = () => api.post('/settings/test-email').then(res => res.data);
 
 export const getSections = () => api.get('/sections').then(res => res.data);
 export const saveSection = (section: Partial<Section>) => api.post('/sections', section);

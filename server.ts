@@ -306,6 +306,54 @@ async function startServer() {
     res.json({ message: "Settings updated" });
   });
 
+  app.post("/api/settings/test-email", authenticate, async (req, res) => {
+    try {
+      const rows = await db.all("SELECT * FROM settings");
+      const settings = rows.reduce((acc, row) => ({ ...acc, [row.key]: row.value }), {}) as any;
+
+      if (!settings.smtpHost || !settings.smtpUser || !settings.smtpPassword || !settings.notificationEmail) {
+        return res.status(400).json({ success: false, error: "Incomplete SMTP settings. Please fill out Host, User, Password, and Notification Email." });
+      }
+
+      const transporter = nodemailer.createTransport({
+        host: settings.smtpHost,
+        port: parseInt(settings.smtpPort || '465', 10),
+        secure: String(settings.smtpPort) === '465', // true for 465, false for other ports
+        auth: {
+          user: settings.smtpUser,
+          pass: settings.smtpPassword,
+        },
+      });
+
+      // Verify connection configuration
+      await transporter.verify();
+
+      // Send a test email
+      const mailOptions = {
+        from: `"${settings.siteName || 'System Test'}" <${settings.smtpUser}>`,
+        to: settings.notificationEmail,
+        subject: "✅ System Test: Email Configuration Successful",
+        html: `
+          <div style="font-family: sans-serif; padding: 20px; text-align: center;">
+            <h2 style="color: #16a34a;">Test Email Successful</h2>
+            <p>Your SMTP credentials are correct. You are ready to receive leads!</p>
+          </div>
+        `
+      };
+
+      await transporter.sendMail(mailOptions);
+      res.json({ success: true, message: "Test email sent successfully to " + settings.notificationEmail });
+      
+    } catch (error: any) {
+      console.error("[TEST EMAIL] SMTP Error:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error.message || "Failed to connect to SMTP server",
+        fullError: String(error)
+      });
+    }
+  });
+
   // Sections
   app.get("/api/sections", async (req, res) => {
     const sections = await db.all("SELECT * FROM sections ORDER BY order_index ASC");

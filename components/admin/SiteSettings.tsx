@@ -7,7 +7,7 @@ import {
 import { Link } from 'react-router-dom';
 import {
   getSettings, updateSettings, getPageData, saveDraft, publishPage,
-  uploadFile, getMediaList, deleteMedia
+  uploadFile, getMediaList, deleteMedia, testEmailConfig
 } from '../../services/api';
 
 const DEFAULT_SECTION_ORDER = [
@@ -74,6 +74,10 @@ const SiteSettings: React.FC = () => {
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const mediaInputRef = useRef<HTMLInputElement>(null);
+
+  // Email Test State
+  const [testingEmail, setTestingEmail] = useState(false);
+  const [emailTestResult, setEmailTestResult] = useState<{success: boolean, message: string, fullError?: string} | null>(null);
 
   useEffect(() => {
     loadAll();
@@ -188,6 +192,26 @@ const SiteSettings: React.FC = () => {
       showStatus('error', 'Failed to save settings');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleTestEmail = async () => {
+    setTestingEmail(true);
+    setEmailTestResult(null);
+    try {
+      // Auto-save the latest typed settings before testing
+      await updateSettings(settings);
+      
+      const result = await testEmailConfig();
+      setEmailTestResult(result);
+    } catch (err: any) {
+      setEmailTestResult({
+        success: false,
+        message: err.response?.data?.error || "Failed to test email connection.",
+        fullError: err.response?.data?.fullError || String(err)
+      });
+    } finally {
+      setTestingEmail(false);
     }
   };
 
@@ -653,6 +677,41 @@ const SiteSettings: React.FC = () => {
                     </ol>
                   </div>
                 </div>
+
+                <div className="mt-8 border-t border-slate-200 pt-8 flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 mb-1">Verify Configuration</h4>
+                    <p className="text-xs text-slate-500">Save your settings and attempt to send a test email to your Notification Email.</p>
+                  </div>
+                  <button
+                    onClick={handleTestEmail}
+                    disabled={testingEmail || saving}
+                    className="flex items-center gap-2 bg-slate-100 text-slate-700 border border-slate-200 px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all disabled:opacity-50"
+                  >
+                    {testingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                    Test Connection
+                  </button>
+                </div>
+
+                {emailTestResult && (
+                  <div className={`mt-6 p-5 rounded-xl border ${emailTestResult.success ? 'bg-green-50/50 border-green-200' : 'bg-red-50/50 border-red-200'}`}>
+                    <div className="flex items-center gap-3 mb-2">
+                       {emailTestResult.success ? <CheckCircle className="w-5 h-5 text-green-600" /> : <AlertCircle className="w-5 h-5 text-red-600" />}
+                       <h4 className={`text-sm font-bold ${emailTestResult.success ? 'text-green-800' : 'text-red-800'}`}>
+                         {emailTestResult.message}
+                       </h4>
+                    </div>
+                    
+                    {!emailTestResult.success && emailTestResult.fullError && (
+                      <div className="mt-4">
+                        <p className="text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider">Raw Server Error Log (Show this to your host):</p>
+                        <div className="bg-slate-900 rounded-lg p-4 overflow-x-auto text-xs font-mono text-red-300 leading-relaxed max-h-48 overflow-y-auto whitespace-pre-wrap">
+                          {emailTestResult.fullError}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
             </div>
