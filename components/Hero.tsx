@@ -16,10 +16,12 @@ const Hero: React.FC = () => {
 
   const scrollTo = (id: SectionID | string) => {
     // Visual builder prefixes service IDs with 'service-'
-    const sectionId = (Object.values(SectionID) as string[]).includes(id) ? `service-${id}` : id;
-    const el = document.getElementById(sectionId);
+    // while the live site might just use the raw id
+    const prefixedId = (Object.values(SectionID) as string[]).includes(id as string) ? `service-${id}` : id as string;
+    const el = document.getElementById(prefixedId) || document.getElementById(id as string);
+    
     if (el) {
-      const headerOffset = window.innerWidth < 1024 ? 130 : 100;
+      const headerOffset = window.innerWidth < 1024 ? 120 : 90;
       const elementPosition = el.getBoundingClientRect().top;
       const offsetPosition = elementPosition + window.scrollY - headerOffset;
       window.scrollTo({ top: offsetPosition, behavior: 'smooth' });

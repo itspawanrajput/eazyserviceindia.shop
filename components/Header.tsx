@@ -44,11 +44,13 @@ const Header: React.FC = () => {
 
   const scrollTo = (id: string) => {
     // Visual builder prefixes service IDs with 'service-'
-    const sectionId = (Object.values(SectionID) as string[]).includes(id) ? `service-${id}` : id;
-    const element = document.getElementById(sectionId);
+    // while the live site might just use the raw id (e.g. 'cleaning')
+    const prefixedId = (Object.values(SectionID) as string[]).includes(id) ? `service-${id}` : id;
+    const element = document.getElementById(prefixedId) || document.getElementById(id);
+    
     if (element) {
       const isMobile = window.innerWidth < 1024;
-      const headerOffset = isMobile ? 130 : 100;
+      const headerOffset = isMobile ? 120 : 90;
       
       const elementPosition = element.getBoundingClientRect().top;
       const offsetPosition = elementPosition + window.scrollY - headerOffset;
