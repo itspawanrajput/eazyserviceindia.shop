@@ -542,9 +542,10 @@ async function startServer() {
     // Media Library — List all uploaded files
     app.get("/api/media/list", authenticate, (req, res) => {
         const uploadsDir = path.join(__dirname, "uploads");
-        if (!fs.existsSync(uploadsDir)) return res.json([]);
+        if (!fs.existsSync(uploadsDir))
+            return res.json([]);
         try {
-            const files = fs.readdirSync(uploadsDir).map(name => {
+            const files = fs.readdirSync(uploadsDir).map((name) => {
                 const stat = fs.statSync(path.join(uploadsDir, name));
                 return {
                     name,
@@ -555,7 +556,8 @@ async function startServer() {
                 };
             }).sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
             res.json(files);
-        } catch (err) {
+        }
+        catch (err) {
             console.error("Error listing media:", err);
             res.status(500).json({ error: "Failed to list media files" });
         }
@@ -564,11 +566,13 @@ async function startServer() {
     app.delete("/api/media/:filename", authenticate, (req, res) => {
         const filename = req.params.filename;
         const filepath = path.join(__dirname, "uploads", filename);
-        if (!fs.existsSync(filepath)) return res.status(404).json({ error: "File not found" });
+        if (!fs.existsSync(filepath))
+            return res.status(404).json({ error: "File not found" });
         try {
             fs.unlinkSync(filepath);
             res.json({ message: "File deleted" });
-        } catch (err) {
+        }
+        catch (err) {
             console.error("Error deleting media:", err);
             res.status(500).json({ error: "Failed to delete file" });
         }

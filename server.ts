@@ -606,6 +606,46 @@ async function startServer() {
     res.sendFile(filepath);
   });
 
+  // Media Library — List all uploaded files
+  app.get("/api/media/list", authenticate, (req, res) => {
+    const uploadsDir = path.join(__dirname, "uploads");
+    if (!fs.existsSync(uploadsDir)) return res.json([]);
+
+    try {
+      const files = fs.readdirSync(uploadsDir).map((name: string) => {
+        const stat = fs.statSync(path.join(uploadsDir, name));
+        return {
+          name,
+          url: `/api/media?f=${encodeURIComponent(name)}`,
+          size: stat.size,
+          modified: stat.mtime,
+          isVideo: /\.(mp4|webm|mov)$/i.test(name)
+        };
+      }).sort((a: any, b: any) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
+      
+      res.json(files);
+    } catch (err) {
+      console.error("Error listing media:", err);
+      res.status(500).json({ error: "Failed to list media files" });
+    }
+  });
+
+  // Media Library — Delete a file
+  app.delete("/api/media/:filename", authenticate, (req, res) => {
+    const filename = req.params.filename;
+    const filepath = path.join(__dirname, "uploads", filename);
+    
+    if (!fs.existsSync(filepath)) return res.status(404).json({ error: "File not found" });
+
+    try {
+      fs.unlinkSync(filepath);
+      res.json({ message: "File deleted" });
+    } catch (err) {
+      console.error("Error deleting media:", err);
+      res.status(500).json({ error: "Failed to delete file" });
+    }
+  });
+
   // Builder Endpoints
   app.get("/api/builder/page/:id", async (req, res) => {
     const page = await db.get("SELECT * FROM page_state WHERE id = ?", [req.params.id]);
