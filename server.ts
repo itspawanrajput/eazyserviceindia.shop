@@ -664,16 +664,37 @@ async function startServer() {
     }
 
     try {
+      // 1. Try Nominatim (OpenStreetMap) first for a real address
+      const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
+      const geoRes = await fetch(nominatimUrl, {
+        headers: {
+          'User-Agent': 'CoolGoaACServices/1.0'
+        }
+      });
+      
+      if (geoRes.ok) {
+        const geoData = await geoRes.json();
+        if (geoData.display_name) {
+          // Extract a cleaner address (Neighborhood, Road, or City)
+          const addr = geoData.address;
+          const cleanArea = addr.suburb || addr.neighbourhood || addr.residential || addr.road || addr.city_district || addr.city || "Delhi-NCR";
+          const fullDisplay = `${cleanArea}${addr.city ? ', ' + addr.city : ''}`;
+          return res.json({ location: geoData.display_name.split(',').slice(0, 3).join(',').trim() });
+        }
+      }
+
+      // 2. Fallback to Gemini if Nominatim fails or returns nothing
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+      const response = await (ai as any).models.generateContent({
+        model: "gemini-1.5-flash", 
         contents: `The user is at coordinates ${lat}, ${lng}. 
                   Identify the specific neighborhood or area name in Delhi-NCR (e.g., 'DLF Phase 3, Gurgaon' or 'Sector 18, Noida'). 
                   Return ONLY the name of the area. If it's not close to any, return 'Delhi-NCR'.`,
       });
-
-      const area = response.text?.trim() || "Delhi-NCR";
+      
+      const area = (response as any).text?.trim() || "Delhi-NCR";
       res.json({ location: area });
+
     } catch (error) {
       console.error("Error reverse geocoding on server:", error);
       res.status(500).json({ location: `${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)}` });

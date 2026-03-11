@@ -216,7 +216,7 @@ const BookingForm: React.FC = () => {
                           <input
                             type={field.type}
                             required={field.required}
-                            className={`w-full py-3 pl-10 ${field.id === 'location' ? 'pr-20' : 'pr-3'} rounded-xl bg-slate-100 border-none focus:ring-2 focus:ring-blue-500 transition-all text-sm`}
+                            className={`w-full py-3 pl-10 ${field.id === 'location' ? 'pr-24' : 'pr-3'} rounded-xl bg-slate-100 border-none focus:ring-2 focus:ring-blue-500 transition-all text-sm`}
                             placeholder={field.placeholder || `Enter ${field.label || field.id}`}
                             value={formData[field.id] || ''}
                             onChange={(e) => {

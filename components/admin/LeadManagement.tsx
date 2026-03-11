@@ -90,7 +90,7 @@ const LeadManagement: React.FC = () => {
 
     const headers = [
       'ID', 'Name', 'Phone', 'Email', 'Location', 'Service', 'Source', 
-      'Message', 'Status', 'Quality Score', 'Assigned To', 'Created At', 
+      'Message', 'Status', 'Quality Score', 'Assigned To', 'Notes', 'Created At', 
       'Pref Date', 'Pref Time', 'Campaign', 'Medium', 'Term', 'GCLID', 
       'FBCLID', 'Landing Page', 'Referrer', 'IP Address', 'Browser', 
       'OS', 'Device Type'
@@ -112,6 +112,7 @@ const LeadManagement: React.FC = () => {
         csvEscape(l.status),
         csvEscape(l.quality_score || ''),
         csvEscape(l.assigned_to || ''),
+        csvEscape(l.notes || ''),
         csvEscape(new Date(l.created_at).toLocaleString()),
         csvEscape(l.preferred_date || ''),
         csvEscape(l.preferred_time || ''),
@@ -537,7 +538,7 @@ const LeadManagement: React.FC = () => {
                           <MapPin className="w-4 h-4 text-teal-600" /> Visitor Information
                         </h4>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                          <div>
+                          <div className="col-span-2 md:col-span-2">
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">IP Address</p>
                             <span className="text-xs font-bold font-mono text-slate-700 break-all">{parsedData.ip_address || '-'}</span>
                           </div>

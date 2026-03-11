@@ -183,7 +183,7 @@ const HeroForm: React.FC = () => {
                       type={field.type}
                       placeholder={field.placeholder || field.label}
                       required={field.required}
-                      className="w-full bg-white/10 border border-white/20 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                      className={`w-full bg-white/10 border border-white/20 rounded-xl py-2.5 pl-10 ${field.id === 'location' ? 'pr-24' : 'pr-4'} text-sm text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all`}
                       value={formData[field.id] || ''}
                       onChange={(e) => {
                         setFormData({ ...formData, [field.id]: e.target.value });
