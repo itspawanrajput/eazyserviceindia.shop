@@ -59,6 +59,8 @@ async function startServer() {
       message TEXT,
       preferred_date TEXT,
       preferred_time TEXT,
+      source TEXT,
+      custom_data TEXT,
       status TEXT DEFAULT 'new',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -96,14 +98,12 @@ async function startServer() {
     // Migration: Add preferred_date and preferred_time if they don't exist
     const tableInfo = await db.all("PRAGMA table_info(leads)");
     const hasPreferredDate = tableInfo.some(col => col.name === 'preferred_date');
-    const hasPreferredTime = tableInfo.some(col => col.name === 'preferred_time');
     if (!hasPreferredDate) {
         await db.exec("ALTER TABLE leads ADD COLUMN preferred_date TEXT");
-    }
-    if (!hasPreferredTime) {
         await db.exec("ALTER TABLE leads ADD COLUMN preferred_time TEXT");
+        console.log("[MIGRATE] Added preferred_date and preferred_time to leads table");
     }
-    // Migration: Add source column if it doesn't exist
+    // Migration: Add source and custom_data if they don't exist
     const hasSource = tableInfo.some(col => col.name === 'source');
     if (!hasSource) {
         await db.exec("ALTER TABLE leads ADD COLUMN source TEXT DEFAULT 'unknown'");
@@ -538,6 +538,40 @@ async function startServer() {
         if (!fs.existsSync(filepath))
             return res.status(404).send("File not found");
         res.sendFile(filepath);
+    });
+    // Media Library — List all uploaded files
+    app.get("/api/media/list", authenticate, (req, res) => {
+        const uploadsDir = path.join(__dirname, "uploads");
+        if (!fs.existsSync(uploadsDir)) return res.json([]);
+        try {
+            const files = fs.readdirSync(uploadsDir).map(name => {
+                const stat = fs.statSync(path.join(uploadsDir, name));
+                return {
+                    name,
+                    url: `/api/media?f=${name}`,
+                    size: stat.size,
+                    modified: stat.mtime,
+                    isVideo: /\.(mp4|webm|mov)$/i.test(name)
+                };
+            }).sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
+            res.json(files);
+        } catch (err) {
+            console.error("Error listing media:", err);
+            res.status(500).json({ error: "Failed to list media files" });
+        }
+    });
+    // Media Library — Delete a file
+    app.delete("/api/media/:filename", authenticate, (req, res) => {
+        const filename = req.params.filename;
+        const filepath = path.join(__dirname, "uploads", filename);
+        if (!fs.existsSync(filepath)) return res.status(404).json({ error: "File not found" });
+        try {
+            fs.unlinkSync(filepath);
+            res.json({ message: "File deleted" });
+        } catch (err) {
+            console.error("Error deleting media:", err);
+            res.status(500).json({ error: "Failed to delete file" });
+        }
     });
     // Builder Endpoints
     app.get("/api/builder/page/:id", async (req, res) => {

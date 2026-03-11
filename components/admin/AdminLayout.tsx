@@ -12,7 +12,8 @@ import {
   Bell,
   Search,
   ShieldCheck,
-  Loader2
+  Loader2,
+  Globe
 } from 'lucide-react';
 
 const AdminLayout: React.FC = () => {
@@ -50,6 +51,7 @@ const AdminLayout: React.FC = () => {
     { icon: FileText, label: 'Content', path: '/admin/content' },
     { icon: ShieldCheck, label: 'Security', path: '/admin/security' },
     { icon: SettingsIcon, label: 'Settings', path: '/admin/settings' },
+    { icon: Globe, label: 'Site Settings', path: '/admin/site-settings' },
   ];
 
   if (loading) {

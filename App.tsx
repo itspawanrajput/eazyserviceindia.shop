@@ -23,6 +23,7 @@ import ContentManagement from './components/admin/ContentManagement';
 import FormBuilder from './components/admin/FormBuilder';
 import SecuritySettings from './components/admin/SecuritySettings';
 import Settings from './components/admin/Settings';
+import SiteSettings from './components/admin/SiteSettings';
 import { VisualBuilderProvider, useVisualBuilder } from './src/context/VisualBuilderContext';
 import AdminToolbar from './src/components/AdminToolbar';
 import EditPanel from './src/components/EditPanel';
@@ -166,6 +167,7 @@ const App: React.FC = () => {
             <Route path="forms" element={<FormBuilder />} />
             <Route path="security" element={<SecuritySettings />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="site-settings" element={<SiteSettings />} />
           </Route>
 
           {/* Fallback */}

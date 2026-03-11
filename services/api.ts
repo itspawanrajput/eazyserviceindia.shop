@@ -95,4 +95,8 @@ export const detectLocation = async (lat: number, lng: number): Promise<string> 
   return response.data.location;
 };
 
+// Media Library
+export const getMediaList = () => api.get('/media/list').then(res => res.data);
+export const deleteMedia = (filename: string) => api.delete(`/media/${filename}`);
+
 export default api;
