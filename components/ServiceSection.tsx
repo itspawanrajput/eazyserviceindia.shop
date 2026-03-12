@@ -28,7 +28,7 @@ const ServiceSection: React.FC<Props> = ({ service, alternate }) => {
             >
               {/* The Image with Large Rounded Corners (Pill-like) */}
               <div className="overflow-hidden rounded-[40px] md:rounded-[50px] shadow-xl aspect-[4/3] md:aspect-square lg:aspect-[4/3]">
-                <Editable id={`service-image-${service.id}`} type="image">
+                <Editable id={`service-image-${service.id}`} type="image" className="w-full h-full">
                   <img 
                     src={service.image} 
                     alt={service.heading} 
