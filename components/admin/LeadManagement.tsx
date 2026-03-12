@@ -199,7 +199,10 @@ const LeadManagement: React.FC = () => {
             <option value="all">All Status</option>
             <option value="new">New</option>
             <option value="contacted">Contacted</option>
-            <option value="closed">Closed</option>
+            <option value="qualified">Qualified</option>
+            <option value="proposal_sent">Proposal Sent</option>
+            <option value="won">Closed Won</option>
+            <option value="lost">Closed Lost</option>
           </select>
           <select
             className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700"
@@ -289,14 +292,22 @@ const LeadManagement: React.FC = () => {
                       <select
                         value={lead.status}
                         onChange={(e) => handleStatusUpdate(lead.id, e.target.value)}
-                        className={`text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-wider outline-none border-none cursor-pointer ${lead.status === 'new' ? 'bg-blue-100 text-blue-600' :
+                        className={`text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-wider outline-none border-none cursor-pointer ${
+                          lead.status === 'new' ? 'bg-blue-100 text-blue-600' :
                           lead.status === 'contacted' ? 'bg-yellow-100 text-yellow-600' :
-                            'bg-green-100 text-green-600'
-                          }`}
+                          lead.status === 'qualified' ? 'bg-purple-100 text-purple-600' :
+                          lead.status === 'proposal_sent' ? 'bg-indigo-100 text-indigo-600' :
+                          lead.status === 'won' ? 'bg-green-100 text-green-600' :
+                          lead.status === 'lost' ? 'bg-red-100 text-red-600' :
+                          'bg-slate-100 text-slate-600'
+                        }`}
                       >
                         <option value="new">New</option>
                         <option value="contacted">Contacted</option>
-                        <option value="closed">Closed</option>
+                        <option value="qualified">Qualified</option>
+                        <option value="proposal_sent">Proposal Sent</option>
+                        <option value="won">Closed Won</option>
+                        <option value="lost">Closed Lost</option>
                       </select>
                     </td>
                     <td className="p-6">
