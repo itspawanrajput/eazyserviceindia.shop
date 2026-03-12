@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import mysql from "mysql2/promise";
@@ -14,7 +15,20 @@ import { GoogleGenAI } from "@google/genai";
 import nodemailer from "nodemailer";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "uploads");
+const UPLOAD_DIR_CONFIG = process.env.UPLOAD_DIR;
+let UPLOAD_DIR = UPLOAD_DIR_CONFIG || path.join(__dirname, "uploads");
+// Basic check for UPLOAD_DIR accessibility
+try {
+    if (!fs.existsSync(UPLOAD_DIR)) {
+        fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+    }
+}
+catch (e) {
+    console.warn(`[UPLOAD] Configured DIR ${UPLOAD_DIR} not accessible, falling back to local 'uploads'`);
+    UPLOAD_DIR = path.join(__dirname, "uploads");
+    if (!fs.existsSync(UPLOAD_DIR))
+        fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+}
 const PORT = parseInt(process.env.PORT || "3000", 10);
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-this";
 if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
@@ -24,8 +38,12 @@ if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
 async function startServer() {
     const app = express();
     // Database setup
+    // Note: On Hostinger, 127.0.0.1 is drastically more reliable than "localhost" due to TCP vs Socket differences
+    let dbHost = process.env.DB_HOST || '127.0.0.1';
+    if (dbHost === 'localhost')
+        dbHost = '127.0.0.1';
     const pool = mysql.createPool({
-        host: process.env.DB_HOST || 'localhost',
+        host: dbHost,
         user: process.env.DB_USER || 'root',
         password: process.env.DB_PASSWORD || '',
         database: process.env.DB_NAME || 'ecommerce',
@@ -36,7 +54,13 @@ async function startServer() {
     });
     const db = {
         async exec(sql) {
-            await pool.query(sql);
+            try {
+                await pool.query(sql);
+            }
+            catch (e) {
+                console.error(`[DB ERROR] Failed to execute: ${sql.substring(0, 100)}...`, e);
+                throw e;
+            }
         },
         async get(sql, params = []) {
             const [rows] = await pool.query(sql, params);
@@ -302,7 +326,7 @@ async function startServer() {
     app.post("/api/settings", authenticate, async (req, res) => {
         const { settings } = req.body;
         for (const [key, value] of Object.entries(settings)) {
-            await db.run("REPLACE INTO settings (`key`, value) VALUES (?, ?)", [key, value]);
+            await db.run("REPLACE INTO settings (`key`, value) VALUES (?, ?)", [key, value ?? '']);
         }
         res.json({ message: "Settings updated" });
     });
@@ -355,7 +379,7 @@ async function startServer() {
     });
     app.post("/api/sections", authenticate, async (req, res) => {
         const { id, title, content, order_index, is_visible, config } = req.body;
-        await db.run("REPLACE INTO sections (id, title, content, order_index, is_visible, config) VALUES (?, ?, ?, ?, ?, ?)", [id, title, JSON.stringify(content), order_index, is_visible ? 1 : 0, JSON.stringify(config)]);
+        await db.run("REPLACE INTO sections (id, title, content, order_index, is_visible, config) VALUES (?, ?, ?, ?, ?, ?)", [id, title || null, JSON.stringify(content || []), order_index || 0, is_visible ? 1 : 0, JSON.stringify(config || {})]);
         res.json({ message: "Section updated" });
     });
     app.delete("/api/sections/:id", authenticate, async (req, res) => {
@@ -402,8 +426,26 @@ async function startServer() {
         const initialActivity = JSON.stringify([
             { event: 'Lead Created', details: `Received from ${source || 'unknown'} via ${ip_address}`, date: new Date().toISOString() }
         ]);
-        await db.run("INSERT INTO leads (name, phone, email, location, service_type, message, preferred_date, preferred_time, source, custom_data, activities) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [name, phone, email, location, service_type, message, preferred_date, preferred_time, source || 'unknown', custom_data, initialActivity]);
-        res.json({ message: "Lead saved" });
+        try {
+            await db.run("INSERT INTO leads (name, phone, email, location, service_type, message, preferred_date, preferred_time, source, custom_data, activities) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
+                name || null,
+                phone || null,
+                email || null,
+                location || null,
+                service_type || null,
+                message || null,
+                preferred_date || null,
+                preferred_time || null,
+                source || 'unknown',
+                custom_data || null,
+                initialActivity
+            ]);
+            res.json({ message: "Lead saved" });
+        }
+        catch (dbError) {
+            console.error("[LEAD SUBMISSION ERROR]", dbError);
+            return res.status(500).json({ error: "Failed to save lead. Please try again." });
+        }
         // Fire & Forget Email Notification (runs asynchronously so the user doesn't wait)
         (async () => {
             try {
@@ -602,19 +644,19 @@ async function startServer() {
             const values = [];
             if (status !== undefined) {
                 updates.push("status = ?");
-                values.push(status);
+                values.push(status ?? null);
             }
             if (assigned_to !== undefined) {
                 updates.push("assigned_to = ?");
-                values.push(assigned_to);
+                values.push(assigned_to ?? null);
             }
             if (quality_score !== undefined) {
                 updates.push("quality_score = ?");
-                values.push(quality_score);
+                values.push(quality_score ?? null);
             }
             if (notes !== undefined) {
                 updates.push("notes = ?");
-                values.push(notes);
+                values.push(notes ?? null);
             }
             // Always update activities if we have new ones
             if (new_activity) {
@@ -807,4 +849,8 @@ async function startServer() {
         console.log(`Server running on http://localhost:${PORT}`);
     });
 }
-startServer();
+startServer().catch(err => {
+    console.error("❌ FATAL ERROR DURING SERVER STARTUP:");
+    console.error(err);
+    process.exit(1);
+});

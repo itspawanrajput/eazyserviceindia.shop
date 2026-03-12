@@ -20,10 +20,10 @@ const cloneWithImgSrc = (element: any, newSrc: string, imgStyle?: React.CSSPrope
         if (result !== kid) found = true;
         return result;
       });
-      if (found) return React.cloneElement(element, {}, ...newKids);
+      if (found) return React.cloneElement(element, { ...element.props }, ...newKids);
     } else {
       const result = cloneWithImgSrc(kids, newSrc, imgStyle);
-      if (result !== kids) return React.cloneElement(element, {}, result);
+      if (result !== kids) return React.cloneElement(element, { ...element.props }, result);
     }
   }
   // If element itself has src prop (like img), set it
@@ -37,9 +37,10 @@ interface EditableProps {
   id: string;
   children: React.ReactElement;
   type: 'text' | 'button' | 'image' | 'icon' | 'section' | 'link' | 'social';
+  className?: string;
 }
 
-const Editable: React.FC<EditableProps> = ({ id, children, type }) => {
+const Editable: React.FC<EditableProps> = ({ id, children, type, className = '' }) => {
   const { isEditMode, selectedElementId, setSelectedElementId, setSelectedElementType, pageData, setPageData, device } = useVisualBuilder();
   const isSelected = selectedElementId === id;
   const elementRef = useRef<HTMLDivElement>(null);
@@ -268,7 +269,7 @@ const Editable: React.FC<EditableProps> = ({ id, children, type }) => {
     <div
       ref={elementRef}
       onClick={handleClick}
-      className={`relative group transition-all duration-200 ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : 'hover:ring-1 hover:ring-blue-300 hover:ring-offset-1'}`}
+      className={`relative group transition-all duration-200 ${className} ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : 'hover:ring-1 hover:ring-blue-300 hover:ring-offset-1'}`}
     >
       {isSelected && (
         <div className={`absolute -top-8 left-0 flex items-center gap-1 ${labelColor} text-white text-[10px] font-bold px-2 py-1 rounded-t-lg z-[100]`}>

@@ -147,7 +147,7 @@ const BookingForm: React.FC = () => {
         <div className="relative z-10 max-w-5xl mx-auto px-4">
           <div className="bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col lg:flex-row">
             <div className="relative w-full lg:w-[400px] lg:flex-shrink-0 min-h-[280px] lg:min-h-[560px]">
-              <Editable id="booking-panel-image" type="image">
+              <Editable id="booking-panel-image" type="image" className="absolute inset-0">
                 <img
                   src="https://images.unsplash.com/photo-1581578731548-c64695cc6952?q=80&w=800&auto=format&fit=crop"
                   alt="Professional AC Technician"

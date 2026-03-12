@@ -16,7 +16,19 @@ import nodemailer from "nodemailer";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "uploads");
+const UPLOAD_DIR_CONFIG = process.env.UPLOAD_DIR;
+let UPLOAD_DIR = UPLOAD_DIR_CONFIG || path.join(__dirname, "uploads");
+
+// Basic check for UPLOAD_DIR accessibility
+try {
+  if (!fs.existsSync(UPLOAD_DIR)) {
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  }
+} catch (e) {
+  console.warn(`[UPLOAD] Configured DIR ${UPLOAD_DIR} not accessible, falling back to local 'uploads'`);
+  UPLOAD_DIR = path.join(__dirname, "uploads");
+  if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+}
 
 const PORT = parseInt(process.env.PORT || "3000", 10);
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-this";
