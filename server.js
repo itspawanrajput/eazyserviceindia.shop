@@ -1,7 +1,6 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
-import sqlite3 from "sqlite3";
-import { open } from "sqlite";
+import mysql from "mysql2/promise";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
@@ -15,6 +14,7 @@ import { GoogleGenAI } from "@google/genai";
 import nodemailer from "nodemailer";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "uploads");
 const PORT = parseInt(process.env.PORT || "3000", 10);
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-this";
 if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
@@ -24,68 +24,91 @@ if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
 async function startServer() {
     const app = express();
     // Database setup
-    const db = await open({
-        filename: "./database.sqlite",
-        driver: sqlite3.Database
+    const pool = mysql.createPool({
+        host: process.env.DB_HOST || 'localhost',
+        user: process.env.DB_USER || 'root',
+        password: process.env.DB_PASSWORD || '',
+        database: process.env.DB_NAME || 'ecommerce',
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0,
+        multipleStatements: true
     });
+    const db = {
+        async exec(sql) {
+            await pool.query(sql);
+        },
+        async get(sql, params = []) {
+            const [rows] = await pool.query(sql, params);
+            return rows[0] || undefined;
+        },
+        async all(sql, params = []) {
+            const [rows] = await pool.query(sql, params);
+            return rows;
+        },
+        async run(sql, params = []) {
+            const [result] = await pool.execute(sql, params);
+            return { lastID: result.insertId, changes: result.affectedRows };
+        }
+    };
     await db.exec(`
     CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT UNIQUE,
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      username VARCHAR(255) UNIQUE,
       password TEXT
     );
 
     CREATE TABLE IF NOT EXISTS settings (
-      key TEXT PRIMARY KEY,
+      \`key\` VARCHAR(255) PRIMARY KEY,
       value TEXT
     );
 
     CREATE TABLE IF NOT EXISTS sections (
-      id TEXT PRIMARY KEY,
-      title TEXT,
+      id VARCHAR(255) PRIMARY KEY,
+      title VARCHAR(255),
       content TEXT,
-      order_index INTEGER,
-      is_visible INTEGER DEFAULT 1,
+      order_index INT,
+      is_visible INT DEFAULT 1,
       config TEXT
     );
 
     CREATE TABLE IF NOT EXISTS leads (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT,
-      phone TEXT,
-      email TEXT,
-      location TEXT,
-      service_type TEXT,
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(255),
+      phone VARCHAR(255),
+      email VARCHAR(255),
+      location VARCHAR(255),
+      service_type VARCHAR(255),
       message TEXT,
-      preferred_date TEXT,
-      preferred_time TEXT,
-      source TEXT,
+      preferred_date VARCHAR(255),
+      preferred_time VARCHAR(255),
+      source VARCHAR(255),
       custom_data TEXT,
-      status TEXT DEFAULT 'new',
+      status VARCHAR(255) DEFAULT 'new',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS page_state (
-      id TEXT PRIMARY KEY,
-      draft_json TEXT,
-      published_json TEXT,
+      id VARCHAR(255) PRIMARY KEY,
+      draft_json MEDIUMTEXT,
+      published_json MEDIUMTEXT,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS visitors (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      ip_address TEXT,
-      user_agent TEXT,
-      device_type TEXT,
-      browser TEXT,
-      os TEXT,
-      path TEXT,
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      ip_address VARCHAR(255),
+      user_agent VARCHAR(255),
+      device_type VARCHAR(255),
+      browser VARCHAR(255),
+      os VARCHAR(255),
+      path VARCHAR(255),
       visit_time DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS forms (
-      id TEXT PRIMARY KEY,
-      name TEXT,
+      id VARCHAR(255) PRIMARY KEY,
+      name VARCHAR(255),
       fields_json TEXT,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -96,30 +119,36 @@ async function startServer() {
         await db.run("INSERT INTO page_state (id, draft_json, published_json) VALUES (?, ?, ?)", ["home", "{}", "{}"]);
     }
     // Migration: Add preferred_date and preferred_time if they don't exist
-    const tableInfo = await db.all("PRAGMA table_info(leads)");
-    const hasPreferredDate = tableInfo.some(col => col.name === 'preferred_date');
+    let tableInfo = [];
+    try {
+        tableInfo = await db.all("SHOW COLUMNS FROM leads");
+    }
+    catch (e) {
+        console.error("Migration error:", e);
+    }
+    const hasPreferredDate = tableInfo.some(col => col.Field === 'preferred_date');
     if (!hasPreferredDate) {
-        await db.exec("ALTER TABLE leads ADD COLUMN preferred_date TEXT");
-        await db.exec("ALTER TABLE leads ADD COLUMN preferred_time TEXT");
+        await db.exec("ALTER TABLE leads ADD COLUMN preferred_date VARCHAR(255)");
+        await db.exec("ALTER TABLE leads ADD COLUMN preferred_time VARCHAR(255)");
         console.log("[MIGRATE] Added preferred_date and preferred_time to leads table");
     }
     // Migration: Add source and custom_data if they don't exist
-    const hasSource = tableInfo.some(col => col.name === 'source');
+    const hasSource = tableInfo.some(col => col.Field === 'source');
     if (!hasSource) {
-        await db.exec("ALTER TABLE leads ADD COLUMN source TEXT DEFAULT 'unknown'");
+        await db.exec("ALTER TABLE leads ADD COLUMN source VARCHAR(255) DEFAULT 'unknown'");
     }
     // Migration: Add custom_data column to leads for dynamic form builder
-    const hasCustomData = tableInfo.some(col => col.name === 'custom_data');
+    const hasCustomData = tableInfo.some(col => col.Field === 'custom_data');
     if (!hasCustomData) {
-        await db.exec("ALTER TABLE leads ADD COLUMN custom_data TEXT DEFAULT '{}'");
+        await db.exec("ALTER TABLE leads ADD COLUMN custom_data TEXT");
     }
     // Migration: Add CRM columns for Lead Management
-    const hasAssignedTo = tableInfo.some(col => col.name === 'assigned_to');
+    const hasAssignedTo = tableInfo.some(col => col.Field === 'assigned_to');
     if (!hasAssignedTo) {
-        await db.exec("ALTER TABLE leads ADD COLUMN assigned_to TEXT DEFAULT 'Unassigned'");
-        await db.exec("ALTER TABLE leads ADD COLUMN quality_score TEXT");
+        await db.exec("ALTER TABLE leads ADD COLUMN assigned_to VARCHAR(255) DEFAULT 'Unassigned'");
+        await db.exec("ALTER TABLE leads ADD COLUMN quality_score VARCHAR(255)");
         await db.exec("ALTER TABLE leads ADD COLUMN notes TEXT");
-        await db.exec("ALTER TABLE leads ADD COLUMN activities TEXT DEFAULT '[]'");
+        await db.exec("ALTER TABLE leads ADD COLUMN activities TEXT");
         console.log("[MIGRATE] Added CRM columns (assigned_to, quality_score, notes, activities) to leads table");
     }
     // Admin User Seeding Configuration
@@ -157,14 +186,13 @@ async function startServer() {
     app.use(cors());
     app.use(express.json());
     app.use(cookieParser());
-    app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+    app.use("/uploads", express.static(UPLOAD_DIR));
     // Multer for file uploads
     const storage = multer.diskStorage({
         destination: (req, file, cb) => {
-            const dir = "./uploads";
-            if (!fs.existsSync(dir))
-                fs.mkdirSync(dir);
-            cb(null, dir);
+            if (!fs.existsSync(UPLOAD_DIR))
+                fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+            cb(null, UPLOAD_DIR);
         },
         filename: (req, file, cb) => {
             cb(null, Date.now() + "-" + file.originalname);
@@ -274,9 +302,51 @@ async function startServer() {
     app.post("/api/settings", authenticate, async (req, res) => {
         const { settings } = req.body;
         for (const [key, value] of Object.entries(settings)) {
-            await db.run("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", [key, value]);
+            await db.run("REPLACE INTO settings (`key`, value) VALUES (?, ?)", [key, value]);
         }
         res.json({ message: "Settings updated" });
+    });
+    app.post("/api/settings/test-email", authenticate, async (req, res) => {
+        try {
+            const rows = await db.all("SELECT * FROM settings");
+            const settings = rows.reduce((acc, row) => ({ ...acc, [row.key]: row.value }), {});
+            if (!settings.smtpHost || !settings.smtpUser || !settings.smtpPassword || !settings.notificationEmail) {
+                return res.status(400).json({ success: false, error: "Incomplete SMTP settings. Please fill out Host, User, Password, and Notification Email." });
+            }
+            const transporter = nodemailer.createTransport({
+                host: settings.smtpHost,
+                port: parseInt(settings.smtpPort || '465', 10),
+                secure: String(settings.smtpPort) === '465', // true for 465, false for other ports
+                auth: {
+                    user: settings.smtpUser,
+                    pass: settings.smtpPassword,
+                },
+            });
+            // Verify connection configuration
+            await transporter.verify();
+            // Send a test email
+            const mailOptions = {
+                from: `"${settings.siteName || 'System Test'}" <${settings.smtpUser}>`,
+                to: settings.notificationEmail,
+                subject: "✅ System Test: Email Configuration Successful",
+                html: `
+          <div style="font-family: sans-serif; padding: 20px; text-align: center;">
+            <h2 style="color: #16a34a;">Test Email Successful</h2>
+            <p>Your SMTP credentials are correct. You are ready to receive leads!</p>
+          </div>
+        `
+            };
+            await transporter.sendMail(mailOptions);
+            res.json({ success: true, message: "Test email sent successfully to " + settings.notificationEmail });
+        }
+        catch (error) {
+            console.error("[TEST EMAIL] SMTP Error:", error);
+            res.status(500).json({
+                success: false,
+                error: error.message || "Failed to connect to SMTP server",
+                fullError: String(error)
+            });
+        }
     });
     // Sections
     app.get("/api/sections", async (req, res) => {
@@ -285,7 +355,7 @@ async function startServer() {
     });
     app.post("/api/sections", authenticate, async (req, res) => {
         const { id, title, content, order_index, is_visible, config } = req.body;
-        await db.run("INSERT OR REPLACE INTO sections (id, title, content, order_index, is_visible, config) VALUES (?, ?, ?, ?, ?, ?)", [id, title, JSON.stringify(content), order_index, is_visible ? 1 : 0, JSON.stringify(config)]);
+        await db.run("REPLACE INTO sections (id, title, content, order_index, is_visible, config) VALUES (?, ?, ?, ?, ?, ?)", [id, title, JSON.stringify(content), order_index, is_visible ? 1 : 0, JSON.stringify(config)]);
         res.json({ message: "Section updated" });
     });
     app.delete("/api/sections/:id", authenticate, async (req, res) => {
@@ -307,7 +377,7 @@ async function startServer() {
         try {
             const { name, fields_json } = req.body;
             const { id } = req.params;
-            await db.run("INSERT OR REPLACE INTO forms (id, name, fields_json, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)", [id, name || id, JSON.stringify(fields_json || [])]);
+            await db.run("REPLACE INTO forms (id, name, fields_json, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)", [id, name || id, JSON.stringify(fields_json || [])]);
             res.json({ message: "Form updated successfully" });
         }
         catch (err) {
@@ -343,7 +413,7 @@ async function startServer() {
                     const transporter = nodemailer.createTransport({
                         host: settings.smtpHost,
                         port: parseInt(settings.smtpPort || '465', 10),
-                        secure: settings.smtpPort === '465', // true for 465, false for other ports
+                        secure: String(settings.smtpPort) === '465', // true for 465, false for other ports
                         auth: {
                             user: settings.smtpUser,
                             pass: settings.smtpPassword,
@@ -399,7 +469,22 @@ async function startServer() {
                     <tr><td style="padding: 8px 0; font-weight: bold; width: 30%; color: #64748b;">Name:</td><td style="padding: 8px 0; color: #0f172a; font-weight: 600;">${name}</td></tr>
                     <tr><td style="padding: 8px 0; font-weight: bold; width: 30%; color: #64748b;">Phone:</td><td style="padding: 8px 0; color: #0f172a;"><a href="tel:${phone}" style="color: #2563eb; text-decoration: none; font-weight: 600;">${phone}</a></td></tr>
                     <tr><td style="padding: 8px 0; font-weight: bold; width: 30%; color: #64748b;">Email:</td><td style="padding: 8px 0; color: #0f172a;">${email || '-'}</td></tr>
-                    <tr><td style="padding: 8px 0; font-weight: bold; width: 30%; color: #64748b;">Location:</td><td style="padding: 8px 0; color: #0f172a;">${location}</td></tr>
+                    <tr>
+                      <td style="padding: 8px 0; font-weight: bold; width: 30%; color: #64748b;">Location:</td>
+                      <td style="padding: 8px 0; color: #0f172a;">
+                        ${location}
+                        ${parsedCustom.lat && parsedCustom.lng ? `
+                          <br/>
+                          <a href="https://www.google.com/maps/dir/?api=1&destination=${parsedCustom.lat},${parsedCustom.lng}" style="color: #2563eb; font-size: 12px; font-weight: bold; text-decoration: none; margin-top: 4px; display: inline-block;">📍 Get Directions</a>
+                        ` : ''}
+                      </td>
+                    </tr>
+                    ${parsedCustom.lat && parsedCustom.lng ? `
+                    <tr>
+                      <td style="padding: 8px 0; font-weight: bold; width: 30%; color: #64748b;">Coordinates:</td>
+                      <td style="padding: 8px 0; color: #64748b; font-size: 12px; font-family: monospace;">${parsedCustom.lat}, ${parsedCustom.lng}</td>
+                    </tr>
+                    ` : ''}
                   </table>
 
                   <h3 style="color: #475569; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; margin-top: 20px;">Inquiry Details</h3>
@@ -559,9 +644,27 @@ async function startServer() {
             return res.status(400).json({ error: "Latitude and longitude required" });
         }
         try {
+            // 1. Try Nominatim (OpenStreetMap) first for a real address
+            const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
+            const geoRes = await fetch(nominatimUrl, {
+                headers: {
+                    'User-Agent': 'CoolGoaACServices/1.0'
+                }
+            });
+            if (geoRes.ok) {
+                const geoData = await geoRes.json();
+                if (geoData.display_name) {
+                    // Extract a cleaner address (Neighborhood, Road, or City)
+                    const addr = geoData.address;
+                    const cleanArea = addr.suburb || addr.neighbourhood || addr.residential || addr.road || addr.city_district || addr.city || "Delhi-NCR";
+                    const fullDisplay = `${cleanArea}${addr.city ? ', ' + addr.city : ''}`;
+                    return res.json({ location: geoData.display_name.split(',').slice(0, 3).join(',').trim() });
+                }
+            }
+            // 2. Fallback to Gemini if Nominatim fails or returns nothing
             const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
             const response = await ai.models.generateContent({
-                model: "gemini-3-flash-preview",
+                model: "gemini-1.5-flash",
                 contents: `The user is at coordinates ${lat}, ${lng}. 
                   Identify the specific neighborhood or area name in Delhi-NCR (e.g., 'DLF Phase 3, Gurgaon' or 'Sector 18, Noida'). 
                   Return ONLY the name of the area. If it's not close to any, return 'Delhi-NCR'.`,
@@ -581,7 +684,7 @@ async function startServer() {
         const ip_address = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
         try {
             // Prevent rapid duplicate logging from the same IP within a 5-minute window
-            const recentVisit = await db.get("SELECT id FROM visitors WHERE ip_address = ? AND path = ? AND visit_time > datetime('now', '-5 minutes')", [ip_address, visitPath]);
+            const recentVisit = await db.get("SELECT id FROM visitors WHERE ip_address = ? AND path = ? AND visit_time > NOW() - INTERVAL 5 MINUTE", [ip_address, visitPath]);
             if (!recentVisit) {
                 await db.run("INSERT INTO visitors (ip_address, user_agent, device_type, browser, os, path) VALUES (?, ?, ?, ?, ?, ?)", [ip_address, user_agent || 'unknown', device_type || 'unknown', browser || 'unknown', os || 'unknown', visitPath || '/']);
             }
@@ -600,7 +703,7 @@ async function startServer() {
         SELECT 
           COUNT(*) as total_visits,
           COUNT(DISTINCT ip_address) as unique_visitors,
-          SUM(CASE WHEN visit_time > datetime('now', '-24 hours') THEN 1 ELSE 0 END) as visits_today
+          SUM(CASE WHEN visit_time > NOW() - INTERVAL 24 HOUR THEN 1 ELSE 0 END) as visits_today
         FROM visitors
       `);
             res.json({ visitors, stats });
@@ -622,19 +725,18 @@ async function startServer() {
         const filename = req.query.f;
         if (!filename)
             return res.status(400).send("No file specified");
-        const filepath = path.join(__dirname, "uploads", filename);
+        const filepath = path.join(UPLOAD_DIR, filename);
         if (!fs.existsSync(filepath))
             return res.status(404).send("File not found");
         res.sendFile(filepath);
     });
     // Media Library — List all uploaded files
     app.get("/api/media/list", authenticate, (req, res) => {
-        const uploadsDir = path.join(__dirname, "uploads");
-        if (!fs.existsSync(uploadsDir))
+        if (!fs.existsSync(UPLOAD_DIR))
             return res.json([]);
         try {
-            const files = fs.readdirSync(uploadsDir).map((name) => {
-                const stat = fs.statSync(path.join(uploadsDir, name));
+            const files = fs.readdirSync(UPLOAD_DIR).map((name) => {
+                const stat = fs.statSync(path.join(UPLOAD_DIR, name));
                 return {
                     name,
                     url: `/api/media?f=${encodeURIComponent(name)}`,
@@ -653,7 +755,7 @@ async function startServer() {
     // Media Library — Delete a file
     app.delete("/api/media/:filename", authenticate, (req, res) => {
         const filename = req.params.filename;
-        const filepath = path.join(__dirname, "uploads", filename);
+        const filepath = path.join(UPLOAD_DIR, filename);
         if (!fs.existsSync(filepath))
             return res.status(404).json({ error: "File not found" });
         try {

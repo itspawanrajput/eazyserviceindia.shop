@@ -1,7 +1,6 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
-import sqlite3 from "sqlite3";
-import { open } from "sqlite";
+import mysql from "mysql2/promise";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
@@ -16,6 +15,7 @@ import nodemailer from "nodemailer";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "uploads");
 
 const PORT = parseInt(process.env.PORT || "3000", 10);
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-this";
@@ -29,69 +29,93 @@ async function startServer() {
   const app = express();
 
   // Database setup
-  const db = await open({
-    filename: "./database.sqlite",
-    driver: sqlite3.Database
+  const pool = mysql.createPool({
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'ecommerce',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    multipleStatements: true
   });
+
+  const db = {
+    async exec(sql: string) {
+      await pool.query(sql);
+    },
+    async get(sql: string, params: any[] = []) {
+      const [rows]: any = await pool.query(sql, params);
+      return rows[0] || undefined;
+    },
+    async all(sql: string, params: any[] = []) {
+      const [rows]: any = await pool.query(sql, params);
+      return rows;
+    },
+    async run(sql: string, params: any[] = []) {
+      const [result]: any = await pool.execute(sql, params);
+      return { lastID: result.insertId, changes: result.affectedRows };
+    }
+  };
 
   await db.exec(`
     CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT UNIQUE,
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      username VARCHAR(255) UNIQUE,
       password TEXT
     );
 
     CREATE TABLE IF NOT EXISTS settings (
-      key TEXT PRIMARY KEY,
+      \`key\` VARCHAR(255) PRIMARY KEY,
       value TEXT
     );
 
     CREATE TABLE IF NOT EXISTS sections (
-      id TEXT PRIMARY KEY,
-      title TEXT,
+      id VARCHAR(255) PRIMARY KEY,
+      title VARCHAR(255),
       content TEXT,
-      order_index INTEGER,
-      is_visible INTEGER DEFAULT 1,
+      order_index INT,
+      is_visible INT DEFAULT 1,
       config TEXT
     );
 
     CREATE TABLE IF NOT EXISTS leads (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT,
-      phone TEXT,
-      email TEXT,
-      location TEXT,
-      service_type TEXT,
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(255),
+      phone VARCHAR(255),
+      email VARCHAR(255),
+      location VARCHAR(255),
+      service_type VARCHAR(255),
       message TEXT,
-      preferred_date TEXT,
-      preferred_time TEXT,
-      source TEXT,
+      preferred_date VARCHAR(255),
+      preferred_time VARCHAR(255),
+      source VARCHAR(255),
       custom_data TEXT,
-      status TEXT DEFAULT 'new',
+      status VARCHAR(255) DEFAULT 'new',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS page_state (
-      id TEXT PRIMARY KEY,
-      draft_json TEXT,
-      published_json TEXT,
+      id VARCHAR(255) PRIMARY KEY,
+      draft_json MEDIUMTEXT,
+      published_json MEDIUMTEXT,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS visitors (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      ip_address TEXT,
-      user_agent TEXT,
-      device_type TEXT,
-      browser TEXT,
-      os TEXT,
-      path TEXT,
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      ip_address VARCHAR(255),
+      user_agent VARCHAR(255),
+      device_type VARCHAR(255),
+      browser VARCHAR(255),
+      os VARCHAR(255),
+      path VARCHAR(255),
       visit_time DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS forms (
-      id TEXT PRIMARY KEY,
-      name TEXT,
+      id VARCHAR(255) PRIMARY KEY,
+      name VARCHAR(255),
       fields_json TEXT,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -107,33 +131,38 @@ async function startServer() {
   }
 
   // Migration: Add preferred_date and preferred_time if they don't exist
-  const tableInfo = await db.all("PRAGMA table_info(leads)");
-  const hasPreferredDate = tableInfo.some(col => col.name === 'preferred_date');
+  let tableInfo: any[] = [];
+  try {
+    tableInfo = await db.all("SHOW COLUMNS FROM leads");
+  } catch (e) {
+    console.error("Migration error:", e);
+  }
+  const hasPreferredDate = tableInfo.some(col => col.Field === 'preferred_date');
   if (!hasPreferredDate) {
-    await db.exec("ALTER TABLE leads ADD COLUMN preferred_date TEXT");
-    await db.exec("ALTER TABLE leads ADD COLUMN preferred_time TEXT");
+    await db.exec("ALTER TABLE leads ADD COLUMN preferred_date VARCHAR(255)");
+    await db.exec("ALTER TABLE leads ADD COLUMN preferred_time VARCHAR(255)");
     console.log("[MIGRATE] Added preferred_date and preferred_time to leads table");
   }
 
   // Migration: Add source and custom_data if they don't exist
-  const hasSource = tableInfo.some(col => col.name === 'source');
+  const hasSource = tableInfo.some(col => col.Field === 'source');
   if (!hasSource) {
-    await db.exec("ALTER TABLE leads ADD COLUMN source TEXT DEFAULT 'unknown'");
+    await db.exec("ALTER TABLE leads ADD COLUMN source VARCHAR(255) DEFAULT 'unknown'");
   }
 
   // Migration: Add custom_data column to leads for dynamic form builder
-  const hasCustomData = tableInfo.some(col => col.name === 'custom_data');
+  const hasCustomData = tableInfo.some(col => col.Field === 'custom_data');
   if (!hasCustomData) {
-    await db.exec("ALTER TABLE leads ADD COLUMN custom_data TEXT DEFAULT '{}'");
+    await db.exec("ALTER TABLE leads ADD COLUMN custom_data TEXT");
   }
 
   // Migration: Add CRM columns for Lead Management
-  const hasAssignedTo = tableInfo.some(col => col.name === 'assigned_to');
+  const hasAssignedTo = tableInfo.some(col => col.Field === 'assigned_to');
   if (!hasAssignedTo) {
-    await db.exec("ALTER TABLE leads ADD COLUMN assigned_to TEXT DEFAULT 'Unassigned'");
-    await db.exec("ALTER TABLE leads ADD COLUMN quality_score TEXT");
+    await db.exec("ALTER TABLE leads ADD COLUMN assigned_to VARCHAR(255) DEFAULT 'Unassigned'");
+    await db.exec("ALTER TABLE leads ADD COLUMN quality_score VARCHAR(255)");
     await db.exec("ALTER TABLE leads ADD COLUMN notes TEXT");
-    await db.exec("ALTER TABLE leads ADD COLUMN activities TEXT DEFAULT '[]'");
+    await db.exec("ALTER TABLE leads ADD COLUMN activities TEXT");
     console.log("[MIGRATE] Added CRM columns (assigned_to, quality_score, notes, activities) to leads table");
   }
 
@@ -174,14 +203,13 @@ async function startServer() {
   app.use(cors());
   app.use(express.json());
   app.use(cookieParser());
-  app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+  app.use("/uploads", express.static(UPLOAD_DIR));
 
   // Multer for file uploads
   const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-      const dir = "./uploads";
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir);
-      cb(null, dir);
+      if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+      cb(null, UPLOAD_DIR);
     },
     filename: (req, file, cb) => {
       cb(null, Date.now() + "-" + file.originalname);
@@ -301,7 +329,7 @@ async function startServer() {
   app.post("/api/settings", authenticate, async (req, res) => {
     const { settings } = req.body;
     for (const [key, value] of Object.entries(settings)) {
-      await db.run("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", [key, value]);
+      await db.run("REPLACE INTO settings (`key`, value) VALUES (?, ?)", [key, value]);
     }
     res.json({ message: "Settings updated" });
   });
@@ -363,7 +391,7 @@ async function startServer() {
   app.post("/api/sections", authenticate, async (req, res) => {
     const { id, title, content, order_index, is_visible, config } = req.body;
     await db.run(
-      "INSERT OR REPLACE INTO sections (id, title, content, order_index, is_visible, config) VALUES (?, ?, ?, ?, ?, ?)",
+      "REPLACE INTO sections (id, title, content, order_index, is_visible, config) VALUES (?, ?, ?, ?, ?, ?)",
       [id, title, JSON.stringify(content), order_index, is_visible ? 1 : 0, JSON.stringify(config)]
     );
     res.json({ message: "Section updated" });
@@ -390,7 +418,7 @@ async function startServer() {
       const { name, fields_json } = req.body;
       const { id } = req.params;
       await db.run(
-        "INSERT OR REPLACE INTO forms (id, name, fields_json, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
+        "REPLACE INTO forms (id, name, fields_json, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
         [id, name || id, JSON.stringify(fields_json || [])]
       );
       res.json({ message: "Form updated successfully" });
@@ -725,7 +753,7 @@ async function startServer() {
     try {
       // Prevent rapid duplicate logging from the same IP within a 5-minute window
       const recentVisit = await db.get(
-        "SELECT id FROM visitors WHERE ip_address = ? AND path = ? AND visit_time > datetime('now', '-5 minutes')",
+        "SELECT id FROM visitors WHERE ip_address = ? AND path = ? AND visit_time > NOW() - INTERVAL 5 MINUTE",
         [ip_address as string, visitPath]
       );
 
@@ -751,7 +779,7 @@ async function startServer() {
         SELECT 
           COUNT(*) as total_visits,
           COUNT(DISTINCT ip_address) as unique_visitors,
-          SUM(CASE WHEN visit_time > datetime('now', '-24 hours') THEN 1 ELSE 0 END) as visits_today
+          SUM(CASE WHEN visit_time > NOW() - INTERVAL 24 HOUR THEN 1 ELSE 0 END) as visits_today
         FROM visitors
       `);
 
@@ -773,19 +801,18 @@ async function startServer() {
   app.get("/api/media", (req, res) => {
     const filename = req.query.f as string;
     if (!filename) return res.status(400).send("No file specified");
-    const filepath = path.join(__dirname, "uploads", filename);
+    const filepath = path.join(UPLOAD_DIR, filename);
     if (!fs.existsSync(filepath)) return res.status(404).send("File not found");
     res.sendFile(filepath);
   });
 
   // Media Library — List all uploaded files
   app.get("/api/media/list", authenticate, (req, res) => {
-    const uploadsDir = path.join(__dirname, "uploads");
-    if (!fs.existsSync(uploadsDir)) return res.json([]);
+    if (!fs.existsSync(UPLOAD_DIR)) return res.json([]);
 
     try {
-      const files = fs.readdirSync(uploadsDir).map((name: string) => {
-        const stat = fs.statSync(path.join(uploadsDir, name));
+      const files = fs.readdirSync(UPLOAD_DIR).map((name: string) => {
+        const stat = fs.statSync(path.join(UPLOAD_DIR, name));
         return {
           name,
           url: `/api/media?f=${encodeURIComponent(name)}`,
@@ -805,7 +832,7 @@ async function startServer() {
   // Media Library — Delete a file
   app.delete("/api/media/:filename", authenticate, (req, res) => {
     const filename = req.params.filename;
-    const filepath = path.join(__dirname, "uploads", filename);
+    const filepath = path.join(UPLOAD_DIR, filename);
     
     if (!fs.existsSync(filepath)) return res.status(404).json({ error: "File not found" });
 
