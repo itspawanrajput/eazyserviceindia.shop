@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import mysql from "mysql2/promise";
@@ -29,8 +30,12 @@ async function startServer() {
   const app = express();
 
   // Database setup
+  // Note: On Hostinger, 127.0.0.1 is drastically more reliable than "localhost" due to TCP vs Socket differences
+  let dbHost = process.env.DB_HOST || '127.0.0.1';
+  if (dbHost === 'localhost') dbHost = '127.0.0.1';
+
   const pool = mysql.createPool({
-    host: process.env.DB_HOST || 'localhost',
+    host: dbHost,
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'ecommerce',
@@ -42,7 +47,12 @@ async function startServer() {
 
   const db = {
     async exec(sql: string) {
-      await pool.query(sql);
+      try {
+        await pool.query(sql);
+      } catch (e) {
+        console.error(`[DB ERROR] Failed to execute: ${sql.substring(0, 100)}...`, e);
+        throw e;
+      }
     },
     async get(sql: string, params: any[] = []) {
       const [rows]: any = await pool.query(sql, params);
@@ -894,4 +904,8 @@ async function startServer() {
   });
 }
 
-startServer();
+startServer().catch(err => {
+  console.error("❌ FATAL ERROR DURING SERVER STARTUP:");
+  console.error(err);
+  process.exit(1);
+});
