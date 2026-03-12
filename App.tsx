@@ -137,7 +137,7 @@ const App: React.FC = () => {
   useVisitorTracking();
 
   useEffect(() => {
-    getSettings().then((settings: any) => {
+    const applySettings = (settings: any) => {
       // Set favicon
       if (settings.faviconUrl) {
         let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
@@ -155,7 +155,16 @@ const App: React.FC = () => {
           ? `${settings.siteName} | ${settings.siteTagline}`
           : settings.siteName;
       }
-    }).catch(console.error);
+    };
+
+    // Use server-injected settings for instant load
+    const initialState = (window as any).__INITIAL_STATE__;
+    if (initialState?.settings) {
+      applySettings(initialState.settings);
+    } else {
+      // Fallback API call
+      getSettings().then(applySettings).catch(console.error);
+    }
   }, []);
 
   return (

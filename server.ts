@@ -923,8 +923,29 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     app.use(express.static(path.join(__dirname, "dist")));
-    app.get("*path", (req, res) => {
-      res.sendFile(path.join(__dirname, "dist", "index.html"));
+    app.get("*path", async (req, res) => {
+      try {
+        let html = fs.readFileSync(path.join(__dirname, "dist", "index.html"), "utf-8");
+        
+        // Fetch published state to avoid hydration flicker
+        const page = await db.get("SELECT published_json FROM page_state WHERE id = 'home'");
+        const settingsRows = await db.all("SELECT * FROM settings");
+        const settings = settingsRows.reduce((acc, row) => ({ ...acc, [row.key]: row.value }), {});
+        
+        const data = {
+          pageData: JSON.parse(page?.published_json || "{}"),
+          settings: settings || {}
+        };
+
+        // Inject initial state to bypass API wait on first load
+        const stateScript = `<script>window.__INITIAL_STATE__ = ${JSON.stringify(data)};</script>`;
+        html = html.replace('<div id="root">', `${stateScript}<div id="root">`);
+        
+        res.send(html);
+      } catch (err) {
+        console.error("Error serving index.html:", err);
+        res.sendFile(path.join(__dirname, "dist", "index.html"));
+      }
     });
   }
 

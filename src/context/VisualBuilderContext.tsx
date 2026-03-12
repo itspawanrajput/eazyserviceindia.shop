@@ -34,13 +34,20 @@ const VisualBuilderContext = createContext<VisualBuilderContextType | undefined>
 export const VisualBuilderProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [device, setDevice] = useState<Device>('desktop');
-  const [pageData, setPageData] = useState<any>({});
-  const [loading, setLoading] = useState(true);
+  
+  // Use server-injected state if available for instant load
+  const initialState = (window as any).__INITIAL_STATE__;
+  const [pageData, setPageData] = useState<any>(initialState?.pageData || {});
+  const [loading, setLoading] = useState(!initialState?.pageData);
+  
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [selectedElementType, setSelectedElementType] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchPageData();
+    // Only fetch if we don't have injected state
+    if (!initialState?.pageData) {
+      fetchPageData();
+    }
   }, []);
 
   const fetchPageData = async () => {
