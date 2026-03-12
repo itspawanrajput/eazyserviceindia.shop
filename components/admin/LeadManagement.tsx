@@ -17,7 +17,6 @@ import {
   Eye,
   User
 } from 'lucide-react';
-
 const LeadManagement: React.FC = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,11 +24,9 @@ const LeadManagement: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [sourceFilter, setSourceFilter] = useState('all');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-
   useEffect(() => {
     fetchLeads();
   }, []);
-
   const fetchLeads = async () => {
     try {
       const data = await getLeads();
@@ -40,14 +37,11 @@ const LeadManagement: React.FC = () => {
       setLoading(false);
     }
   };
-
   const handleUpdateLeadField = async (field: keyof Lead, value: any) => {
     if (!selectedLead) return;
-    
     // Optimistic UI update
     setSelectedLead({ ...selectedLead, [field]: value });
     setLeads(leads.map(l => l.id === selectedLead.id ? { ...l, [field]: value } : l));
-
     try {
       // Determine if this is an activity-worthy event
       let new_activity = undefined;
@@ -58,14 +52,12 @@ const LeadManagement: React.FC = () => {
           details: `Changed to: ${value || 'None'}`
         };
       }
-
       await updateLead(selectedLead.id, { [field]: value, new_activity });
     } catch (err) {
       console.error(`Failed to update ${field}`);
       fetchLeads(); // Revert on failure
     }
   };
-
   const handleStatusUpdate = async (id: number, status: string) => {
     try {
       await updateLead(id, { status, new_activity: { event: 'Status Updated', details: `Changed to: ${status}` } });
@@ -74,7 +66,6 @@ const LeadManagement: React.FC = () => {
       console.error('Failed to update status');
     }
   };
-
   const handleDelete = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this lead?')) return;
     try {
@@ -84,22 +75,18 @@ const LeadManagement: React.FC = () => {
       console.error('Failed to delete lead');
     }
   };
-
   const exportToCSV = () => {
     const csvEscape = (val: string) => `"${(val || '').replace(/"/g, '""')}"`;
-
     const headers = [
-      'ID', 'Name', 'Phone', 'Email', 'Location', 'Service', 'Source', 
-      'Message', 'Status', 'Quality Score', 'Assigned To', 'Notes', 'Created At', 
-      'Pref Date', 'Pref Time', 'Campaign', 'Medium', 'Term', 'GCLID', 
-      'FBCLID', 'Landing Page', 'Referrer', 'IP Address', 'Browser', 
+      'ID', 'Name', 'Phone', 'Email', 'Location', 'Service', 'Source',
+      'Message', 'Status', 'Quality Score', 'Assigned To', 'Notes', 'Created At',
+      'Pref Date', 'Pref Time', 'Campaign', 'Medium', 'Term', 'GCLID',
+      'FBCLID', 'Landing Page', 'Referrer', 'IP Address', 'Browser',
       'OS', 'Device Type'
     ];
-    
     const rows = leads.map(l => {
       let custom = {};
-      try { custom = JSON.parse(l.custom_data || '{}'); } catch(e) {}
-      
+      try { custom = JSON.parse(l.custom_data || '{}'); } catch (e) { }
       return [
         csvEscape(String(l.id)),
         csvEscape(l.name),
@@ -129,7 +116,6 @@ const LeadManagement: React.FC = () => {
         csvEscape((custom as any).device_type || '')
       ];
     });
-
     const csvContent = [headers.map(csvEscape), ...rows].map(e => e.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
@@ -141,26 +127,31 @@ const LeadManagement: React.FC = () => {
     link.click();
     document.body.removeChild(link);
   };
-
   const sourceColors: Record<string, string> = {
     'Hero Form': 'bg-purple-50 text-purple-600',
     'Booking Form': 'bg-teal-50 text-teal-600',
     'Popup Offer': 'bg-orange-50 text-orange-600',
     'unknown': 'bg-slate-50 text-slate-500'
   };
-
+  const statusClasses: Record<string, string> = {
+    new: 'bg-blue-100 text-blue-600',
+    contacted: 'bg-yellow-100 text-yellow-600',
+    qualified: 'bg-purple-100 text-purple-600',
+    proposal_sent: 'bg-indigo-100 text-indigo-600',
+    won: 'bg-green-100 text-green-600',
+    lost: 'bg-red-100 text-red-600',
+    irrelevant: 'bg-slate-200 text-slate-600',
+    out_of_area: 'bg-orange-100 text-orange-600'
+  };
   const filteredLeads = leads.filter(lead => {
     const matchesSearch =
       lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lead.phone.includes(searchTerm) ||
       lead.email.toLowerCase().includes(searchTerm.toLowerCase());
-
     const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
     const matchesSource = sourceFilter === 'all' || (lead.source || 'unknown') === sourceFilter;
-
     return matchesSearch && matchesStatus && matchesSource;
   });
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -176,7 +167,6 @@ const LeadManagement: React.FC = () => {
           Export CSV
         </button>
       </div>
-
       {/* Filters */}
       <div className="bg-white p-4 rounded-[24px] border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4">
         <div className="flex-1 relative">
@@ -203,6 +193,8 @@ const LeadManagement: React.FC = () => {
             <option value="proposal_sent">Proposal Sent</option>
             <option value="won">Closed Won</option>
             <option value="lost">Closed Lost</option>
+            <option value="irrelevant">Irrelevant</option>
+            <option value="out_of_area">Irrelevant Out of Area</option>
           </select>
           <select
             className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700"
@@ -217,7 +209,6 @@ const LeadManagement: React.FC = () => {
           </select>
         </div>
       </div>
-
       {/* Leads List */}
       <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
@@ -299,6 +290,8 @@ const LeadManagement: React.FC = () => {
                           lead.status === 'proposal_sent' ? 'bg-indigo-100 text-indigo-600' :
                           lead.status === 'won' ? 'bg-green-100 text-green-600' :
                           lead.status === 'lost' ? 'bg-red-100 text-red-600' :
+                          lead.status === 'irrelevant' ? 'bg-slate-200 text-slate-600' :
+                          lead.status === 'out_of_area' ? 'bg-orange-100 text-orange-600' :
                           'bg-slate-100 text-slate-600'
                         }`}
                       >
@@ -308,6 +301,8 @@ const LeadManagement: React.FC = () => {
                         <option value="proposal_sent">Proposal Sent</option>
                         <option value="won">Closed Won</option>
                         <option value="lost">Closed Lost</option>
+                        <option value="irrelevant">Irrelevant</option>
+                        <option value="out_of_area">Irrelevant Out of Area</option>
                       </select>
                     </td>
                     <td className="p-6">
@@ -351,12 +346,10 @@ const LeadManagement: React.FC = () => {
           </table>
         </div>
       </div>
-
       {/* Enhanced Lead Details Modal (CRM View) */}
       {selectedLead && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 md:p-6">
           <div className="bg-[#f8fafc] rounded-2xl w-full max-w-6xl h-[90vh] md:h-[85vh] overflow-hidden flex flex-col shadow-2xl relative">
-            
             {/* Header / Top Bar */}
             <div className="bg-white px-6 py-4 border-b border-slate-200 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-4">
@@ -396,7 +389,6 @@ const LeadManagement: React.FC = () => {
                 </button>
               </div>
             </div>
-
             {/* Top Control Strip */}
             <div className="bg-white px-6 py-4 border-b border-slate-200 shrink-0 grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
@@ -412,6 +404,8 @@ const LeadManagement: React.FC = () => {
                   <option value="proposal_sent">Proposal Sent</option>
                   <option value="won">Closed Won</option>
                   <option value="lost">Closed Lost</option>
+                  <option value="irrelevant">Irrelevant</option>
+                  <option value="out_of_area">Irrelevant Out of Area</option>
                 </select>
               </div>
               <div>
@@ -445,13 +439,10 @@ const LeadManagement: React.FC = () => {
                 </select>
               </div>
             </div>
-
             {/* Main Content Area (Split Config) */}
             <div className="flex-1 overflow-hidden flex flex-col lg:flex-row bg-[#f1f5f9]">
-              
               {/* Left Column: Data & Notes (Scrollable) */}
               <div className="flex-1 overflow-y-auto p-6 space-y-6 lg:border-r border-slate-200">
-                
                 {/* Contact Information */}
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                   <h4 className="flex items-center gap-2 text-sm font-black text-slate-800 mb-4 border-b border-slate-100 pb-3">
@@ -465,8 +456,7 @@ const LeadManagement: React.FC = () => {
                           const parsed = JSON.parse(selectedLead.custom_data);
                           if (parsed.lat && parsed.lng) coords = { lat: parsed.lat, lng: parsed.lng };
                         }
-                      } catch(e) {}
-                      
+                      } catch (e) { }
                       return (
                         <>
                           <div>
@@ -484,7 +474,7 @@ const LeadManagement: React.FC = () => {
                             <div className="flex items-start gap-2">
                               <span className="text-sm text-slate-700 leading-snug">{selectedLead.location || 'Not provided'}</span>
                               {(selectedLead.location || (coords.lat && coords.lng)) && (
-                                <a 
+                                <a
                                   href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(coords.lat && coords.lng ? `${coords.lat},${coords.lng}` : selectedLead.location)}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
@@ -509,14 +499,13 @@ const LeadManagement: React.FC = () => {
                       <span className="text-sm font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded inline-block">{selectedLead.service_type}</span>
                     </div>
                     <div className="md:col-span-2">
-                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Customer Message</p>
-                       <div className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-100 italic">
-                         {selectedLead.message ? `"${selectedLead.message}"` : "No message provided."}
-                       </div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Customer Message</p>
+                      <div className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-100 italic">
+                        {selectedLead.message ? `"${selectedLead.message}"` : "No message provided."}
+                      </div>
                     </div>
                   </div>
                 </div>
-
                 {/* Attribution & Tracking Data */}
                 {(() => {
                   let trackingFieldActive = false;
@@ -527,8 +516,7 @@ const LeadManagement: React.FC = () => {
                       const trackingKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'gclid', 'fbclid', 'referrer', 'landing_page', 'ip_address', 'browser', 'os'];
                       trackingFieldActive = trackingKeys.some(key => !!parsedData[key]);
                     }
-                  } catch (e) {}
-
+                  } catch (e) { }
                   return trackingFieldActive ? (
                     <div className="space-y-6">
                       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
@@ -555,7 +543,6 @@ const LeadManagement: React.FC = () => {
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Term / Keyword</p>
                             <span className="text-sm font-bold text-slate-800">{parsedData.utm_term || '-'}</span>
                           </div>
-                          
                           <div className="col-span-2">
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">GCLID (Google Ads)</p>
                             <span className="text-xs font-mono text-slate-600 break-all">{parsedData.gclid || '-'}</span>
@@ -564,7 +551,6 @@ const LeadManagement: React.FC = () => {
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">FBCLID (Facebook)</p>
                             <span className="text-xs font-mono text-slate-600 break-all">{parsedData.fbclid || '-'}</span>
                           </div>
-
                           <div className="col-span-4">
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Landing Page</p>
                             <a href={parsedData.landing_page} target="_blank" rel="noreferrer" className="text-xs font-medium text-blue-600 hover:underline break-all">{parsedData.landing_page || '-'}</a>
@@ -575,7 +561,6 @@ const LeadManagement: React.FC = () => {
                           </div>
                         </div>
                       </div>
-
                       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                         <h4 className="flex items-center gap-2 text-sm font-black text-slate-800 mb-4 border-b border-slate-100 pb-3">
                           <MapPin className="w-4 h-4 text-teal-600" /> Visitor Information
@@ -586,23 +571,22 @@ const LeadManagement: React.FC = () => {
                             <span className="text-xs font-bold font-mono text-slate-700 break-all">{parsedData.ip_address || '-'}</span>
                           </div>
                           <div>
-                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Device Form Factor</p>
-                             <span className="text-xs font-bold text-slate-700 capitalize">{parsedData.device_type || 'Unknown'}</span>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Device Form Factor</p>
+                            <span className="text-xs font-bold text-slate-700 capitalize">{parsedData.device_type || 'Unknown'}</span>
                           </div>
                           <div>
-                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Browser</p>
-                             <span className="text-xs font-bold text-slate-700">{parsedData.browser || 'Unknown'}</span>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Browser</p>
+                            <span className="text-xs font-bold text-slate-700">{parsedData.browser || 'Unknown'}</span>
                           </div>
                           <div>
-                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">OS</p>
-                             <span className="text-xs font-bold text-slate-700">{parsedData.os || 'Unknown'}</span>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">OS</p>
+                            <span className="text-xs font-bold text-slate-700">{parsedData.os || 'Unknown'}</span>
                           </div>
                         </div>
                       </div>
                     </div>
                   ) : null;
                 })()}
-
                 {/* Notes Input Area */}
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                   <h4 className="flex items-center gap-2 text-sm font-black text-slate-800 mb-4 border-b border-slate-100 pb-3">
@@ -612,31 +596,27 @@ const LeadManagement: React.FC = () => {
                     Notes
                   </h4>
                   <div className="bg-yellow-50/50 -mx-6 -mb-6 p-6 border-t border-yellow-100">
-                     <textarea 
-                       placeholder="Add notes about this lead..."
-                       className="w-full h-32 bg-white border border-yellow-200 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none mb-3"
-                       onBlur={(e) => {
-                         if(e.target.value.trim() && e.target.value !== selectedLead.notes) {
-                           handleUpdateLeadField('notes', e.target.value);
-                         }
-                       }}
-                       defaultValue={selectedLead.notes || ''}
-                     ></textarea>
-                     <p className="text-[10px] text-slate-400 font-medium">Notes automatically save when you click away.</p>
+                    <textarea
+                      placeholder="Add notes about this lead..."
+                      className="w-full h-32 bg-white border border-yellow-200 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none mb-3"
+                      onBlur={(e) => {
+                        if (e.target.value.trim() && e.target.value !== selectedLead.notes) {
+                          handleUpdateLeadField('notes', e.target.value);
+                        }
+                      }}
+                      defaultValue={selectedLead.notes || ''}
+                    ></textarea>
+                    <p className="text-[10px] text-slate-400 font-medium">Notes automatically save when you click away.</p>
                   </div>
                 </div>
-
               </div>
-              
               {/* Right Column: Activity Timeline & Timestamps */}
               <div className="w-full lg:w-80 bg-white flex flex-col shrink-0 border-l border-slate-200">
-                
                 {/* Timeline Box */}
                 <div className="flex-1 overflow-y-auto p-6">
                   <h4 className="flex items-center gap-2 text-sm font-black text-slate-800 mb-6">
                     <Clock className="w-4 h-4 text-slate-500" /> Activity
                   </h4>
-                  
                   <div className="relative border-l-2 border-slate-100 ml-3 space-y-8 pb-4">
                     {(() => {
                       let activities: any[] = [];
@@ -646,24 +626,21 @@ const LeadManagement: React.FC = () => {
                           // Sort newest first
                           activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
                         }
-                      } catch(e) {}
-
+                      } catch (e) { }
                       if (activities.length === 0) {
                         return <p className="text-xs text-slate-400 pl-6">No activity recorded.</p>;
                       }
-
                       return activities.map((act, idx) => (
                         <div key={idx} className="relative pl-6">
                           <div className="absolute w-3.5 h-3.5 bg-white border-2 border-blue-500 rounded-full -left-[9px] top-1"></div>
                           <p className="text-xs font-bold text-slate-800 mb-0.5">{act.event}</p>
                           {act.details && <p className="text-[11px] text-slate-500 leading-snug break-words mb-1">{act.details}</p>}
-                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">System • {new Date(act.date).toLocaleDateString()} {new Date(act.date).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">System • {new Date(act.date).toLocaleDateString()} {new Date(act.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                         </div>
                       ));
                     })()}
                   </div>
                 </div>
-
                 {/* Timestamps Box */}
                 <div className="p-6 bg-slate-50 border-t border-slate-200">
                   <h4 className="flex items-center gap-2 text-sm font-black text-slate-800 mb-4 pb-3 border-b border-slate-200">
@@ -673,20 +650,17 @@ const LeadManagement: React.FC = () => {
                     <div>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Lead Date</p>
                       <p className="text-xs font-bold text-slate-700">
-                        {new Date(selectedLead.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}, {new Date(selectedLead.created_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
+                        {new Date(selectedLead.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}, {new Date(selectedLead.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
                   </div>
                 </div>
-
               </div>
             </div>
-
           </div>
         </div>
       )}
     </div>
   );
 };
-
 export default LeadManagement;
