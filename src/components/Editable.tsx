@@ -4,14 +4,20 @@ import { Settings, Trash2, Copy } from 'lucide-react';
 
 // Recursively clone a React element tree, replacing the first <img>'s src
 const cloneWithImgSrc = (element: any, newSrc: string, imgStyle?: React.CSSProperties): any => {
-  if (!element || typeof element !== 'object') return element;
-  // Direct img element
-  if (element.type === 'img') {
-    return React.cloneElement(element, { src: newSrc, style: { ...element.props.style, ...imgStyle } });
+  if (!element || !React.isValidElement(element)) return element;
+
+  // If this specific element is an img (or has a src prop), update it
+  const isImg = element.type === 'img' || (element.props as any)?.src !== undefined;
+  if (isImg) {
+    return React.cloneElement(element, {
+      src: newSrc,
+      style: { ...(element.props as any)?.style, ...imgStyle }
+    } as any);
   }
-  // Has children — walk into them
-  if (element.props?.children) {
-    const kids = element.props.children;
+
+  // Walk into children
+  const kids = (element.props as any)?.children;
+  if (kids) {
     if (Array.isArray(kids)) {
       let found = false;
       const newKids = kids.map((kid: any) => {
@@ -20,15 +26,11 @@ const cloneWithImgSrc = (element: any, newSrc: string, imgStyle?: React.CSSPrope
         if (result !== kid) found = true;
         return result;
       });
-      if (found) return React.cloneElement(element, { ...element.props }, ...newKids);
+      if (found) return React.cloneElement(element, { ...element.props, children: newKids });
     } else {
       const result = cloneWithImgSrc(kids, newSrc, imgStyle);
-      if (result !== kids) return React.cloneElement(element, { ...element.props }, result);
+      if (result !== kids) return React.cloneElement(element, { ...element.props, children: result });
     }
-  }
-  // If element itself has src prop (like img), set it
-  if (element.props?.src !== undefined) {
-    return React.cloneElement(element, { src: newSrc, style: { ...element.props.style, ...imgStyle } });
   }
   return element;
 };
@@ -177,12 +179,16 @@ const Editable: React.FC<EditableProps> = ({ id, children, type, className = '' 
     if (type === 'text' && value) {
       return React.cloneElement(children, {
         style: { ...children.props.style, ...style },
-        children: value
+        children: value,
+        className: `${children.props.className || ''} ${className}`.trim()
       });
     }
 
     if (type === 'image' && value) {
-      return cloneWithImgSrc(children, value, imgStyle);
+      const cloned = cloneWithImgSrc(children, value, imgStyle);
+      return React.cloneElement(cloned, { 
+        className: `${cloned.props.className || ''} ${className}`.trim() 
+      });
     }
 
     if (type === 'button') {
@@ -190,6 +196,7 @@ const Editable: React.FC<EditableProps> = ({ id, children, type, className = '' 
       const buttonLink = currentStyles.link || children.props.href;
       return React.cloneElement(children, {
         style: { ...children.props.style, ...style },
+        className: `${children.props.className || ''} ${className}`.trim(),
         children: buttonText,
         onClick: buttonLink ? () => {
           if (buttonLink.startsWith('http') || buttonLink.startsWith('tel:') || buttonLink.startsWith('mailto:')) {
@@ -205,10 +212,10 @@ const Editable: React.FC<EditableProps> = ({ id, children, type, className = '' 
     if (type === 'link') {
       const linkText = currentStyles.text || children.props.children;
       const linkHref = currentStyles.link || children.props.href;
-      // Support custom icon image for links (e.g. WhatsApp button)
       const iconUrl = currentStyles.iconImage;
-      const cloned = React.cloneElement(children, {
+      return React.cloneElement(children, {
         style: { ...children.props.style, ...style },
+        className: `${children.props.className || ''} ${className}`.trim(),
         children: iconUrl
           ? <img src={iconUrl} alt="icon" className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
           : linkText,
@@ -221,12 +228,11 @@ const Editable: React.FC<EditableProps> = ({ id, children, type, className = '' 
           }
         }
       });
-      return cloned;
     }
 
     if (type === 'icon' && value) {
       return (
-        <div style={style}>
+        <div style={style} className={className}>
           <img src={value} alt="icon" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
         </div>
       );
@@ -237,6 +243,7 @@ const Editable: React.FC<EditableProps> = ({ id, children, type, className = '' 
       const socialIcon = currentStyles.iconImage;
       return React.cloneElement(children, {
         href: socialLink || children.props.href,
+        className: `${children.props.className || ''} ${className}`.trim(),
         children: socialIcon
           ? <img src={socialIcon} alt="social icon" className="w-5 h-5 object-contain rounded-full" referrerPolicy="no-referrer" />
           : children.props.children,
@@ -244,17 +251,26 @@ const Editable: React.FC<EditableProps> = ({ id, children, type, className = '' 
     }
 
     if (type === 'section') {
+      // Only wipe original bg if we have a replacement background or video
+      const hasReplacementBg = currentStyles.backgroundImage || currentStyles.backgroundColor || currentStyles.backgroundVideo;
       return (
-        <div className="relative overflow-hidden" style={style}>
+        <div className={`relative overflow-hidden ${className}`.trim()} style={style}>
           {renderVideoBackground()}
-          <div className="relative z-10">
-            {React.cloneElement(children, { style: { ...children.props.style, backgroundColor: 'transparent', backgroundImage: 'none' } })}
-          </div>
+          {hasReplacementBg ?
+            React.cloneElement(children, { 
+              style: { ...children.props.style, backgroundColor: 'transparent', backgroundImage: 'none' } 
+            }) :
+            children
+          }
         </div>
       );
     }
 
-    return React.cloneElement(children, { style: { ...children.props.style, ...style } });
+    // Default passthrough
+    return React.cloneElement(children, { 
+      style: { ...children.props.style, ...style },
+      className: `${children.props.className || ''} ${className}`.trim()
+    });
   }
 
   // ─── Edit mode rendering ───────────────────────────────────────────────────
@@ -265,11 +281,15 @@ const Editable: React.FC<EditableProps> = ({ id, children, type, className = '' 
     type === 'image' ? 'bg-orange-600' :
     'bg-blue-600';
 
+  // Ensure the wrapper doesn't collapse flex/grid layouts
+  const isSizedType = type === 'image' || type === 'section' || type === 'button';
+  const sizeClasses = isSizedType ? 'w-full h-full' : '';
+
   return (
     <div
       ref={elementRef}
       onClick={handleClick}
-      className={`relative group transition-all duration-200 ${className} ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : 'hover:ring-1 hover:ring-blue-300 hover:ring-offset-1'}`}
+      className={`relative group transition-all duration-200 ${sizeClasses} ${className} ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : 'hover:ring-1 hover:ring-blue-300 hover:ring-offset-1'}`}
     >
       {isSelected && (
         <div className={`absolute -top-8 left-0 flex items-center gap-1 ${labelColor} text-white text-[10px] font-bold px-2 py-1 rounded-t-lg z-[100]`}>
@@ -284,45 +304,43 @@ const Editable: React.FC<EditableProps> = ({ id, children, type, className = '' 
 
       {type === 'section' && renderVideoBackground()}
 
-      <div className="relative z-10">
-        {type === 'text' ? (
-          <div
-            contentEditable={isEditMode}
-            onBlur={handleBlur}
-            suppressContentEditableWarning={true}
-            className="outline-none"
-            style={style}
-          >
-            {currentStyles.value || children.props.children}
-          </div>
-        ) : type === 'image' ? (
-          cloneWithImgSrc(
-            children,
-            currentStyles.value || children.props.src || '',
-            imgStyle
-          )
-        ) : type === 'button' || type === 'link' ? (
-          React.cloneElement(children, {
-            style: { ...children.props.style, ...style },
-            children: currentStyles.iconImage
-              ? <img src={currentStyles.iconImage} alt="icon" className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
-              : (currentStyles.text || children.props.children)
-          })
-        ) : type === 'icon' && currentStyles.value ? (
-          <div style={style} className="w-full h-full">
-            <img src={currentStyles.value} alt="icon" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-          </div>
-        ) : type === 'social' ? (
-          React.cloneElement(children, {
-            style: { ...children.props.style, ...style },
-            children: currentStyles.iconImage
-              ? <img src={currentStyles.iconImage} alt="social icon" className="w-5 h-5 object-contain rounded-full" referrerPolicy="no-referrer" />
-              : children.props.children
-          })
-        ) : (
-          React.cloneElement(children, { style: { ...children.props.style, ...style } })
-        )}
-      </div>
+      {type === 'text' ? (
+        <div
+          contentEditable={isEditMode}
+          onBlur={handleBlur}
+          suppressContentEditableWarning={true}
+          className="outline-none"
+          style={style}
+        >
+          {currentStyles.value || children.props.children}
+        </div>
+      ) : type === 'image' ? (
+        cloneWithImgSrc(
+          children,
+          currentStyles.value || children.props.src || '',
+          imgStyle
+        )
+      ) : type === 'button' || type === 'link' ? (
+        React.cloneElement(children, {
+          style: { ...children.props.style, ...style },
+          children: currentStyles.iconImage
+            ? <img src={currentStyles.iconImage} alt="icon" className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
+            : (currentStyles.text || children.props.children)
+        })
+      ) : type === 'icon' && currentStyles.value ? (
+        <div style={style} className="w-full h-full">
+          <img src={currentStyles.value} alt="icon" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+        </div>
+      ) : type === 'social' ? (
+        React.cloneElement(children, {
+          style: { ...children.props.style, ...style },
+          children: currentStyles.iconImage
+            ? <img src={currentStyles.iconImage} alt="social icon" className="w-5 h-5 object-contain rounded-full" referrerPolicy="no-referrer" />
+            : children.props.children
+        })
+      ) : (
+        React.cloneElement(children, { style: { ...children.props.style, ...style } })
+      )}
     </div>
   );
 };
