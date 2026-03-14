@@ -13,6 +13,7 @@ import fs from "fs";
 import rateLimit from "express-rate-limit";
 import { GoogleGenAI } from "@google/genai";
 import nodemailer from "nodemailer";
+import { execSync } from "child_process";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -32,6 +33,30 @@ try {
   UPLOAD_DIR = path.join(__dirname, "uploads");
   if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
+
+// ─── Git Tracker Helper: Syncs DB changes to File System for Git tracking ──
+const trackChangeInGit = (filename: string, data: any, message: string) => {
+  try {
+    const contentDir = path.join(__dirname, "content_tracker");
+    if (!fs.existsSync(contentDir)) fs.mkdirSync(contentDir, { recursive: true });
+    
+    const filePath = path.join(contentDir, filename);
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+    
+    // Only attempt auto-commit if specifically enabled or in dev
+    // On Hostinger, this might require git user.name/email to be set
+    try {
+      execSync(`git add "${filePath}"`, { cwd: __dirname });
+      // We use --allow-empty in case there are no functional changes
+      execSync(`git commit -m "Auto-track: ${message}" --allow-empty`, { cwd: __dirname });
+      console.log(`[GIT] Tracked change in ${filename}: ${message}`);
+    } catch (ge) {
+      console.warn(`[GIT] Auto-commit skipped (non-critical): ${ge.message}`);
+    }
+  } catch (err) {
+    console.error("[GIT] Tracker error:", err);
+  }
+};
 
 const PORT = parseInt(process.env.PORT || "3000", 10);
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-this";
@@ -380,9 +405,14 @@ async function startServer() {
 
   app.post("/api/settings", authenticate, async (req, res) => {
     const { settings } = req.body;
+    await db.run("DELETE FROM settings");
     for (const [key, value] of Object.entries(settings)) {
-      await db.run("REPLACE INTO settings (`key`, value) VALUES (?, ?)", [key, value ?? '']);
+      await db.run("INSERT INTO settings (key, value) VALUES (?, ?)", [key, value]);
     }
+    
+    // Track in Git
+    trackChangeInGit("settings.json", settings, "Branding settings updated");
+    
     res.json({ message: "Settings updated" });
   });
 
@@ -945,6 +975,10 @@ async function startServer() {
       "UPDATE page_state SET draft_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
       [JSON.stringify(draft_json), req.params.id]
     );
+
+    // Track in Git
+    trackChangeInGit(`${req.params.id}_draft.json`, draft_json, `Draft saved for ${req.params.id}`);
+
     res.json({ message: "Draft saved" });
   });
 
@@ -956,6 +990,11 @@ async function startServer() {
       "UPDATE page_state SET published_json = draft_json, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
       [req.params.id]
     );
+
+    // Track in Git
+    const publishedData = JSON.parse(page.draft_json || "{}");
+    trackChangeInGit(`${req.params.id}_published.json`, publishedData, `Page published: ${req.params.id}`);
+
     res.json({ message: "Page published" });
   });
 

@@ -142,12 +142,18 @@ const Hero: React.FC = () => {
 
                     <Editable id={`hero-service-title-${service.id}`} type="text">
                       <span className="text-[10px] md:text-[12px] font-bold text-center text-[#464646] leading-tight px-1 group-hover:text-blue-600 flex flex-col items-center">
-                        {service.title === "Installation/Uninstallation" ? (
-                          <>
-                            <span>Installation/</span>
-                            <span>Uninstallation</span>
-                          </>
-                        ) : service.title}
+                        {(() => {
+                          const titleText = (pageData._serviceTitles && pageData._serviceTitles[service.id]) ?? service.title;
+                          if (titleText === "Installation/Uninstallation") {
+                            return (
+                              <>
+                                <span>Installation/</span>
+                                <span>Uninstallation</span>
+                              </>
+                            );
+                          }
+                          return titleText;
+                        })()}
                       </span>
                     </Editable>
                   </div>

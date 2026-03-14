@@ -54,6 +54,7 @@ const SiteSettings: React.FC = () => {
   const [tempLabel, setTempLabel] = useState("");
   const [pageData, setPageData] = useState<any>({});
   const [serviceBadges, setServiceBadges] = useState<Record<string, string>>({});
+  const [serviceTitles, setServiceTitles] = useState<Record<string, string>>({});
 
   // Branding state
   const [settings, setSettings] = useState<any>({
@@ -113,6 +114,9 @@ const SiteSettings: React.FC = () => {
       if (resolved._serviceBadges) {
         setServiceBadges(resolved._serviceBadges);
       }
+      if (resolved._serviceTitles) {
+        setServiceTitles(resolved._serviceTitles);
+      }
     } catch (err) {
       console.error('Failed to load settings', err);
     } finally {
@@ -154,6 +158,7 @@ const SiteSettings: React.FC = () => {
         _hiddenSections: hiddenSections,
         _sectionLabels: sectionLabels,
         _serviceBadges: serviceBadges,
+        _serviceTitles: serviceTitles,
       };
       await saveDraft('home', newPageData);
       await publishPage('home');
@@ -458,24 +463,43 @@ const SiteSettings: React.FC = () => {
           <div className="p-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {SERVICES.map(service => (
-                <div key={service.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <div className="flex-shrink-0 w-10 h-10 bg-white rounded-full border border-slate-200 flex items-center justify-center text-sm font-bold text-slate-500">
-                    {service.title.charAt(0)}
+                <div key={service.id} className="p-4 rounded-[24px] bg-slate-50 border border-slate-100 flex flex-col gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-shrink-0 w-10 h-10 bg-white rounded-full border border-slate-200 flex items-center justify-center text-sm font-bold text-slate-500">
+                      {service.title.charAt(0)}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-800">AC {service.title}</h3>
+                      <p className="text-[10px] text-slate-400">Edit badge and icon title</p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{service.title}</label>
-                    <input
-                      type="text"
-                      value={serviceBadges[service.id] ?? service.badge ?? ''}
-                      onChange={(e) => setServiceBadges(prev => ({ ...prev, [service.id]: e.target.value }))}
-                      placeholder="e.g. Trending, 50% off"
-                      className="w-full mt-0.5 px-2 py-1 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 bg-white"
-                    />
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Badge Text</label>
+                      <input
+                        type="text"
+                        value={serviceBadges[service.id] ?? service.badge ?? ''}
+                        onChange={(e) => setServiceBadges(prev => ({ ...prev, [service.id]: e.target.value }))}
+                        placeholder="e.g. Trending, 50% off"
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Service Label (Below Icon)</label>
+                      <input
+                        type="text"
+                        value={serviceTitles[service.id] ?? service.title ?? ''}
+                        onChange={(e) => setServiceTitles(prev => ({ ...prev, [service.id]: e.target.value }))}
+                        placeholder="e.g. Repair"
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400 bg-white font-medium"
+                      />
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
-            <p className="text-[11px] text-slate-400 mt-3">Leave empty to hide a badge. Changes apply after clicking Save & Publish above.</p>
+            <p className="text-[11px] text-slate-400 mt-4">💡 Leave fields empty to hide badges or use defaults. Changes apply after clicking "Save & Publish" at the top.</p>
           </div>
         </div>
         </>
