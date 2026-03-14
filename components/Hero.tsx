@@ -69,13 +69,16 @@ const Hero: React.FC = () => {
                       }
                     }}
                   >
-                    {service.badge && (
-                      <div className="absolute top-0 left-1/2 -translate-x-1/2 z-10">
-                        <span className="bg-[#FFF1DB] text-[#D19234] text-[8px] md:text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap border border-[#F6E2C2] shadow-sm">
-                          {service.badge}
-                        </span>
-                      </div>
-                    )}
+                    {(() => {
+                      const badgeText = (pageData._serviceBadges && pageData._serviceBadges[service.id]) ?? service.badge;
+                      return badgeText ? (
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 z-10">
+                          <span className="bg-[#FFF1DB] text-[#D19234] text-[8px] md:text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap border border-[#F6E2C2] shadow-sm">
+                            {badgeText}
+                          </span>
+                        </div>
+                      ) : null;
+                    })()}
 
                     <div className="w-16 h-16 md:w-20 md:h-20 bg-[#F8F9FF] rounded-full flex items-center justify-center mb-2 border border-slate-50 transition-all group-hover:bg-blue-50 group-hover:scale-105">
                       <div className="relative w-full h-full flex items-center justify-center">

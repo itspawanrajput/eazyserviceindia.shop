@@ -9,6 +9,7 @@ import {
   getSettings, updateSettings, getPageData, saveDraft, publishPage,
   uploadFile, getMediaList, deleteMedia, testEmailConfig
 } from '../../services/api';
+import { SERVICES } from '../../constants';
 
 const DEFAULT_SECTION_ORDER = [
   'hero',
@@ -52,6 +53,7 @@ const SiteSettings: React.FC = () => {
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [tempLabel, setTempLabel] = useState("");
   const [pageData, setPageData] = useState<any>({});
+  const [serviceBadges, setServiceBadges] = useState<Record<string, string>>({});
 
   // Branding state
   const [settings, setSettings] = useState<any>({
@@ -108,6 +110,9 @@ const SiteSettings: React.FC = () => {
       if (resolved._sectionLabels) {
         setSectionLabels(resolved._sectionLabels);
       }
+      if (resolved._serviceBadges) {
+        setServiceBadges(resolved._serviceBadges);
+      }
     } catch (err) {
       console.error('Failed to load settings', err);
     } finally {
@@ -148,6 +153,7 @@ const SiteSettings: React.FC = () => {
         _sectionOrder: sectionOrder,
         _hiddenSections: hiddenSections,
         _sectionLabels: sectionLabels,
+        _serviceBadges: serviceBadges,
       };
       await saveDraft('home', newPageData);
       await publishPage('home');
@@ -325,6 +331,7 @@ const SiteSettings: React.FC = () => {
 
       {/* ═══ SECTIONS TAB ═══ */}
       {activeTab === 'sections' && (
+        <>
         <div className="space-y-4">
           <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
             <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
@@ -436,6 +443,42 @@ const SiteSettings: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Service Badge Editor */}
+        <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-slate-100 bg-slate-50">
+            <div className="flex items-center gap-3">
+              <Edit3 className="w-5 h-5 text-amber-600" />
+              <div>
+                <h2 className="font-bold text-slate-900">Service Badges</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Edit the floating badge text shown above each service icon on the homepage</p>
+              </div>
+            </div>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {SERVICES.map(service => (
+                <div key={service.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <div className="flex-shrink-0 w-10 h-10 bg-white rounded-full border border-slate-200 flex items-center justify-center text-sm font-bold text-slate-500">
+                    {service.title.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{service.title}</label>
+                    <input
+                      type="text"
+                      value={serviceBadges[service.id] ?? service.badge ?? ''}
+                      onChange={(e) => setServiceBadges(prev => ({ ...prev, [service.id]: e.target.value }))}
+                      placeholder="e.g. Trending, 50% off"
+                      className="w-full mt-0.5 px-2 py-1 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 bg-white"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] text-slate-400 mt-3">Leave empty to hide a badge. Changes apply after clicking Save & Publish above.</p>
+          </div>
+        </div>
+        </>
       )}
 
       {/* ═══ BRANDING TAB ═══ */}
