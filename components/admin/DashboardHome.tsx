@@ -262,11 +262,11 @@ const DashboardHome: React.FC = () => {
             <button onClick={() => navigate('/admin/leads')} className="w-full flex justify-between items-center px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-[12px] text-slate-700 hover:bg-white transition-colors">
               Add new lead <ArrowUpRight className="w-3.5 h-3.5 opacity-50" />
             </button>
-            <button onClick={() => navigate('/admin/content')} className="w-full flex justify-between items-center px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-[12px] text-slate-700 hover:bg-white transition-colors">
-              Update content <ArrowUpRight className="w-3.5 h-3.5 opacity-50" />
+            <button onClick={() => navigate('/admin/site-settings')} className="w-full flex justify-between items-center px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-[12px] text-slate-700 hover:bg-white transition-colors">
+              Site Settings <ArrowUpRight className="w-3.5 h-3.5 opacity-50" />
             </button>
-            <button onClick={() => navigate('/admin/content')} className="w-full px-3 py-2 rounded-lg bg-[#185FA5] text-white text-[12px] font-medium hover:bg-[#0C447C] transition-colors">
-              Launch Visual Builder
+            <button onClick={() => navigate('/admin/forms')} className="w-full px-3 py-2 rounded-lg bg-[#185FA5] text-white text-[12px] font-medium hover:bg-[#0C447C] transition-colors">
+              Form Builder
             </button>
           </div>
         </div>
