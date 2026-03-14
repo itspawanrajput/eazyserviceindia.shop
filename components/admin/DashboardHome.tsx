@@ -225,54 +225,79 @@ const DashboardHome: React.FC = () => {
 
         {/* Visitors Table */}
         <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden mt-2">
-          <div className="p-6 border-bottom border-slate-100 flex justify-between items-center bg-slate-50">
+          <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
             <div>
               <h2 className="font-bold text-slate-900 flex items-center gap-2">
                 <Globe className="w-5 h-5 text-purple-600" />
                 Live Website Traffic
               </h2>
-              <p className="text-xs text-slate-500 mt-1">Real-time visitor data and device tracking</p>
+              <p className="text-xs text-slate-500 mt-1">Real-time visitor data — device, source, and page tracking</p>
             </div>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-left bg-white">
+            <table className="w-full text-left bg-white text-sm">
               <thead>
                 <tr className="bg-slate-50 border-y border-slate-100/50 text-slate-500 text-xs uppercase tracking-wider">
-                  <th className="px-6 py-4 font-medium">IP Address / Path</th>
-                  <th className="px-6 py-4 font-medium">Device & OS</th>
-                  <th className="px-6 py-4 font-medium">Browser</th>
-                  <th className="px-6 py-4 font-medium text-right">Time</th>
+                  <th className="px-5 py-4 font-medium">IP / Page</th>
+                  <th className="px-5 py-4 font-medium">Device & OS</th>
+                  <th className="px-5 py-4 font-medium">Browser</th>
+                  <th className="px-5 py-4 font-medium">Source / Referrer</th>
+                  <th className="px-5 py-4 font-medium">Screen</th>
+                  <th className="px-5 py-4 font-medium text-right">Time (IST)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   [1, 2, 3].map(i => (
                     <tr key={i} className="animate-pulse">
-                      <td colSpan={4} className="px-6 py-4 h-16 bg-slate-50/50"></td>
+                      <td colSpan={6} className="px-5 py-4 h-16 bg-slate-50/50"></td>
                     </tr>
                   ))
                 ) : recentVisitors.length > 0 ? (
-                  recentVisitors.map((v) => (
-                    <tr key={v.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="font-bold text-slate-800 font-mono text-sm tracking-tight">{v.ip_address?.split(',')[0].trim()}</div>
-                        <div className="text-xs text-blue-500 truncate max-w-[200px] mt-0.5 max-h-4 overflow-hidden" title={v.path}>{v.path}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold px-2 py-1 bg-slate-100 text-slate-600 rounded-md uppercase tracking-wider">{v.device_type}</span>
-                          <span className="text-sm text-slate-600">{v.os}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-600 font-medium">{v.browser}</td>
-                      <td className="px-6 py-4 text-sm text-slate-500 text-right">
-                        {new Date((v.visit_time || '').replace(' ', 'T') + 'Z').toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true, month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                      </td>
-                    </tr>
-                  ))
+                  recentVisitors.map((v) => {
+                    // Robust ISO DATE fix: replace any space with 'T' before appending Z
+                    const visitDate = v.visit_time ? new Date((v.visit_time).replace(' ', 'T') + 'Z') : null;
+                    const timeStr = visitDate && !isNaN(visitDate.getTime())
+                      ? visitDate.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true, month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                      : '—';
+
+                    // Determine the traffic source label
+                    const source = v.utm_source
+                      ? `🎯 ${v.utm_source}${v.utm_medium ? ' / ' + v.utm_medium : ''}`
+                      : v.referrer
+                        ? v.referrer.replace(/^https?:\/\//, '').split('/')[0]
+                        : 'Direct';
+
+                    const isOrganic = !v.utm_source && v.referrer;
+                    const isDirect = !v.utm_source && !v.referrer;
+
+                    return (
+                      <tr key={v.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="px-5 py-4">
+                          <div className="font-mono text-xs font-bold text-slate-700">{v.ip_address?.split(',')[0].trim()}</div>
+                          {v.page_title && <div className="text-[11px] text-slate-500 mt-0.5 truncate max-w-[180px]" title={v.page_title}>{v.page_title}</div>}
+                          <div className="text-[10px] text-blue-500 mt-0.5 truncate max-w-[180px]" title={v.path}>{v.path}</div>
+                        </td>
+                        <td className="px-5 py-4">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider mr-1.5 ${v.device_type === 'mobile' ? 'bg-purple-100 text-purple-600' : v.device_type === 'tablet' ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-600'}`}>{v.device_type || 'desktop'}</span>
+                          <span className="text-xs text-slate-600">{v.os}</span>
+                          {v.language && <div className="text-[10px] text-slate-400 mt-0.5">🌐 {v.language}</div>}
+                        </td>
+                        <td className="px-5 py-4 text-xs text-slate-600 font-medium">{v.browser}</td>
+                        <td className="px-5 py-4">
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isDirect ? 'bg-slate-100 text-slate-500' : isOrganic ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}`} title={v.referrer || ''}>
+                            {source.length > 28 ? source.slice(0, 28) + '…' : source}
+                          </span>
+                          {v.utm_campaign && <div className="text-[10px] text-slate-400 mt-0.5">📣 {v.utm_campaign}</div>}
+                        </td>
+                        <td className="px-5 py-4 text-xs text-slate-400 font-mono">{v.screen || '—'}</td>
+                        <td className="px-5 py-4 text-xs text-slate-500 text-right">{timeStr}</td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-slate-500">No visitors logged yet. They will appear here once someone visits the public site.</td>
+                    <td colSpan={6} className="px-6 py-12 text-center text-slate-500">No visitors logged yet. They will appear here once someone visits the public site.</td>
                   </tr>
                 )}
               </tbody>

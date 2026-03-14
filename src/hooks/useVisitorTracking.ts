@@ -9,35 +9,42 @@ const safelyTrackVisit = async () => {
         const parser = new UAParser();
         const result = parser.getResult();
 
+        // Collect UTM parameters from URL
+        const searchParams = new URLSearchParams(window.location.search);
+        const utmData: Record<string, string> = {};
+        ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].forEach(key => {
+            const val = searchParams.get(key);
+            if (val) utmData[key] = val;
+        });
+
         await fetch('/api/track', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 user_agent: navigator.userAgent,
                 browser: `${result.browser.name} ${result.browser.version}`.trim() || 'Unknown Browser',
                 os: `${result.os.name} ${result.os.version}`.trim() || 'Unknown OS',
                 device_type: result.device.type || 'desktop',
-                path: window.location.pathname,
+                path: window.location.pathname + window.location.search,
+                page_title: document.title,
+                referrer: document.referrer || 'direct',
+                screen: `${screen.width}x${screen.height}`,
+                language: navigator.language || 'unknown',
+                ...utmData,
             }),
         });
 
-        // Mark as tracked for this session so we don't spam the API on navigation
         window.sessionStorage.setItem('visit_tracked', 'true');
     } catch (error) {
-        // Fail silently - analytics shouldn't break the user experience
         console.warn('Failed to track visit');
     }
 };
 
 export const useVisitorTracking = () => {
     useEffect(() => {
-        // Small delay to ensure the page has loaded and we don't block render
         const timer = setTimeout(() => {
             safelyTrackVisit();
         }, 1500);
-
         return () => clearTimeout(timer);
     }, []);
 };

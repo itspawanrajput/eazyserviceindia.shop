@@ -127,11 +127,18 @@ async function startServer() {
     CREATE TABLE IF NOT EXISTS visitors (
       id INT AUTO_INCREMENT PRIMARY KEY,
       ip_address VARCHAR(255),
-      user_agent VARCHAR(255),
-      device_type VARCHAR(255),
+      user_agent TEXT,
+      device_type VARCHAR(100),
       browser VARCHAR(255),
       os VARCHAR(255),
-      path VARCHAR(255),
+      path VARCHAR(500),
+      page_title VARCHAR(255),
+      referrer VARCHAR(500),
+      screen VARCHAR(50),
+      language VARCHAR(20),
+      utm_source VARCHAR(255),
+      utm_medium VARCHAR(255),
+      utm_campaign VARCHAR(255),
       visit_time DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -187,6 +194,26 @@ async function startServer() {
     await db.exec("ALTER TABLE leads ADD COLUMN activities TEXT");
     console.log("[MIGRATE] Added CRM columns (assigned_to, quality_score, notes, activities) to leads table");
   }
+
+  // Migration: Add extended tracking columns to visitors table
+  let visitorsInfo: any[] = [];
+  try { visitorsInfo = await db.all("SHOW COLUMNS FROM visitors"); } catch (e) {}
+
+  const visitorMigrations: [string, string][] = [
+    ['page_title', 'ALTER TABLE visitors ADD COLUMN page_title VARCHAR(255)'],
+    ['referrer',   'ALTER TABLE visitors ADD COLUMN referrer VARCHAR(500)'],
+    ['screen',     'ALTER TABLE visitors ADD COLUMN screen VARCHAR(50)'],
+    ['language',   'ALTER TABLE visitors ADD COLUMN language VARCHAR(20)'],
+    ['utm_source', 'ALTER TABLE visitors ADD COLUMN utm_source VARCHAR(255)'],
+    ['utm_medium', 'ALTER TABLE visitors ADD COLUMN utm_medium VARCHAR(255)'],
+    ['utm_campaign','ALTER TABLE visitors ADD COLUMN utm_campaign VARCHAR(255)'],
+  ];
+  for (const [col, sql] of visitorMigrations) {
+    if (!visitorsInfo.some((c: any) => c.Field === col)) {
+      try { await db.exec(sql); } catch(e) {}
+    }
+  }
+  console.log('[MIGRATE] visitors table extended tracking columns ensured.');
 
   // Admin User Seeding Configuration
   const adminUsername = process.env.ADMIN_USER || "admin";
@@ -785,27 +812,42 @@ async function startServer() {
 
   // Visitor Tracking
   app.post("/api/track", async (req, res) => {
-    const { user_agent, device_type, browser, os, path: visitPath } = req.body;
-    // Basic IP extraction 
-    const ip_address = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+    const { user_agent, device_type, browser, os, path: visitPath, page_title, referrer, screen, language, utm_source, utm_medium, utm_campaign } = req.body;
+    // Extract the true client IP — take only the first entry from the proxy chain
+    const rawIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+    const ip_address = rawIp.split(',')[0].trim();
 
     try {
-      // Prevent rapid duplicate logging from the same IP within a 5-minute window
+      // Prevent duplicate logging from the same IP on the same path within 5 minutes (MySQL syntax)
       const recentVisit = await db.get(
-        "SELECT id FROM visitors WHERE ip_address = ? AND path = ? AND visit_time > NOW() - INTERVAL 5 MINUTE",
-        [ip_address as string, visitPath]
+        "SELECT id FROM visitors WHERE ip_address = ? AND path = ? AND visit_time > DATE_SUB(NOW(), INTERVAL 5 MINUTE)",
+        [ip_address, visitPath]
       );
 
       if (!recentVisit) {
         await db.run(
-          "INSERT INTO visitors (ip_address, user_agent, device_type, browser, os, path) VALUES (?, ?, ?, ?, ?, ?)",
-          [ip_address as string, user_agent || 'unknown', device_type || 'unknown', browser || 'unknown', os || 'unknown', visitPath || '/']
+          `INSERT INTO visitors (ip_address, user_agent, device_type, browser, os, path, page_title, referrer, screen, language, utm_source, utm_medium, utm_campaign)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            ip_address,
+            user_agent || 'unknown',
+            device_type || 'desktop',
+            browser || 'unknown',
+            os || 'unknown',
+            visitPath || '/',
+            page_title || null,
+            (referrer && referrer !== 'direct') ? referrer : null,
+            screen || null,
+            language || null,
+            utm_source || null,
+            utm_medium || null,
+            utm_campaign || null,
+          ]
         );
       }
       res.status(200).json({ success: true });
     } catch (error) {
       console.error("Tracking Error:", error);
-      // Fail silently to not disrupt the user
       res.status(500).json({ success: false });
     }
   });
