@@ -17,6 +17,9 @@ import nodemailer from "nodemailer";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const UPLOAD_DIR_CONFIG = process.env.UPLOAD_DIR;
+// On production (Hostinger), store uploads OUTSIDE the git-deployed folder
+// so that Git push deployments never wipe the media.
+// Set UPLOAD_DIR=/home/user/persistent_uploads in your .env on Hostinger
 let UPLOAD_DIR = UPLOAD_DIR_CONFIG || path.join(__dirname, "uploads");
 
 // Basic check for UPLOAD_DIR accessibility

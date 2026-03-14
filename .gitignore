@@ -24,5 +24,6 @@ dist-ssr
 
 # App Data
 database.sqlite
-uploads/
+uploads/*
+!uploads/.gitkeep
 .env

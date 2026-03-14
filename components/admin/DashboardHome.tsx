@@ -37,11 +37,21 @@ const Sparkline: React.FC<{ data: number[]; color: string }> = ({ data, color })
   return <canvas ref={ref} width={120} height={28} style={{ display: 'block', width: '100%' }} />;
 };
 
-// ─── Helper: format visit_time safely ───────────────────────────────────────
+// ─── Helper: parse date safely (handles both MySQL ISO and SQLite space format) ─
+function safeDate(ts: string): Date | null {
+  if (!ts) return null;
+  // If already has T and Z, use directly; if space-separated (SQLite), convert
+  let str = ts;
+  if (!str.includes('T')) str = str.replace(' ', 'T');
+  if (!str.endsWith('Z') && !str.includes('+')) str += 'Z';
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// ─── Helper: format visit_time as relative time ────────────────────────────
 function formatTime(ts: string): string {
-  if (!ts) return '—';
-  const d = new Date(ts.replace(' ', 'T') + 'Z');
-  if (isNaN(d.getTime())) return '—';
+  const d = safeDate(ts);
+  if (!d) return '—';
   const diff = Math.round((Date.now() - d.getTime()) / 1000);
   if (diff < 60) return `${diff}s ago`;
   if (diff < 3600) return `${Math.round(diff / 60)}m ago`;
@@ -91,7 +101,8 @@ const DashboardHome: React.FC = () => {
         const buckets = Array(30).fill(0);
         leads.forEach((l: any) => {
           if (!l.created_at) return;
-          const d = new Date(l.created_at.replace(' ', 'T') + 'Z');
+          const d = safeDate(l.created_at);
+          if (!d) return;
           const daysAgo = Math.floor((now - d.getTime()) / 86400000);
           if (daysAgo >= 0 && daysAgo < 30) buckets[29 - daysAgo]++;
         });
@@ -293,7 +304,7 @@ const DashboardHome: React.FC = () => {
                     </span>
                   </td>
                   <td className="py-2 text-[11px] text-slate-400">
-                    {lead.created_at ? new Date(lead.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                    {(() => { const d = safeDate(lead.created_at); return d ? d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'; })()}
                   </td>
                 </tr>
               )) : (
