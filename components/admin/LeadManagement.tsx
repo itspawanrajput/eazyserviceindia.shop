@@ -568,7 +568,7 @@ const LeadManagement: React.FC = () => {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                           <div className="col-span-2 md:col-span-2">
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">IP Address</p>
-                            <span className="text-xs font-bold font-mono text-slate-700 break-all">{parsedData.ip_address || '-'}</span>
+                            <span className="text-xs font-bold font-mono text-slate-700 break-all">{parsedData.ip_address?.split(',')[0].trim() || '-'}</span>
                           </div>
                           <div>
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Device Form Factor</p>

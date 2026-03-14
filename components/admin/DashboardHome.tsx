@@ -255,7 +255,7 @@ const DashboardHome: React.FC = () => {
                   recentVisitors.map((v) => (
                     <tr key={v.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="px-6 py-4">
-                        <div className="font-bold text-slate-800 font-mono text-sm tracking-tight">{v.ip_address}</div>
+                        <div className="font-bold text-slate-800 font-mono text-sm tracking-tight">{v.ip_address?.split(',')[0].trim()}</div>
                         <div className="text-xs text-blue-500 truncate max-w-[200px] mt-0.5 max-h-4 overflow-hidden" title={v.path}>{v.path}</div>
                       </td>
                       <td className="px-6 py-4">
@@ -266,7 +266,7 @@ const DashboardHome: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600 font-medium">{v.browser}</td>
                       <td className="px-6 py-4 text-sm text-slate-500 text-right">
-                        {new Date(v.visit_time + 'Z').toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true, month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        {new Date((v.visit_time || '').replace(' ', 'T') + 'Z').toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true, month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </td>
                     </tr>
                   ))
