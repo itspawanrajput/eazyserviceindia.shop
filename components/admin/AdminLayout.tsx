@@ -48,7 +48,6 @@ const AdminLayout: React.FC = () => {
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard' },
     { icon: Users, label: 'Leads', path: '/admin/leads' },
-    { icon: FileText, label: 'Content', path: '/admin/content' },
     { icon: ShieldCheck, label: 'Security', path: '/admin/security' },
     { icon: SettingsIcon, label: 'Settings', path: '/admin/settings' },
     { icon: Globe, label: 'Site Settings', path: '/admin/site-settings' },
