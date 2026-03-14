@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Globe, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { getLeads, getVisitors } from '../../services/api';
 
 // ─── Tiny sparkline chart using canvas ──────────────────────────────────────
@@ -67,6 +68,7 @@ function getSource(v: any): string {
 
 // ─── DashboardHome ───────────────────────────────────────────────────────────
 const DashboardHome: React.FC = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({ totalLeads: 0, newLeads: 0, conversionRate: 0, uniqueVisitors: 0 });
   const [recentLeads, setRecentLeads] = useState<any[]>([]);
   const [recentVisitors, setRecentVisitors] = useState<any[]>([]);
@@ -257,13 +259,13 @@ const DashboardHome: React.FC = () => {
             </div>
           ))}
           <div className="mt-3 space-y-2">
-            <button className="w-full flex justify-between items-center px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-[12px] text-slate-700 hover:bg-white transition-colors">
+            <button onClick={() => navigate('/admin/leads')} className="w-full flex justify-between items-center px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-[12px] text-slate-700 hover:bg-white transition-colors">
               Add new lead <ArrowUpRight className="w-3.5 h-3.5 opacity-50" />
             </button>
-            <button className="w-full flex justify-between items-center px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-[12px] text-slate-700 hover:bg-white transition-colors">
+            <button onClick={() => navigate('/admin/content')} className="w-full flex justify-between items-center px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-[12px] text-slate-700 hover:bg-white transition-colors">
               Update content <ArrowUpRight className="w-3.5 h-3.5 opacity-50" />
             </button>
-            <button className="w-full px-3 py-2 rounded-lg bg-[#185FA5] text-white text-[12px] font-medium hover:bg-[#0C447C] transition-colors">
+            <button onClick={() => navigate('/admin/content')} className="w-full px-3 py-2 rounded-lg bg-[#185FA5] text-white text-[12px] font-medium hover:bg-[#0C447C] transition-colors">
               Launch Visual Builder
             </button>
           </div>
