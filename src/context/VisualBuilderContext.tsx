@@ -91,7 +91,8 @@ export const VisualBuilderProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const publish = async () => {
     try {
-      await publishPage('home');
+      // Send latest pageData with publish to ensure draft is auto-saved first
+      await publishPage('home', pageData);
       alert('Page published successfully!');
     } catch (err) {
       console.error('Publish failed', err);

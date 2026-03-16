@@ -93,7 +93,7 @@ export const changePassword = (data: any) => api.post('/auth/change-password', d
 // Builder
 export const getPageData = (id: string) => api.get(`/builder/page/${id}`).then(res => res.data);
 export const saveDraft = (id: string, data: any) => api.post(`/builder/save/${id}`, { draft_json: data });
-export const publishPage = (id: string) => api.post(`/builder/publish/${id}`);
+export const publishPage = (id: string, data?: any) => api.post(`/builder/publish/${id}`, { draft_json: data });
 
 export const detectLocation = async (lat: number, lng: number): Promise<string> => {
   const response = await api.post('/location/detect', { lat, lng });

@@ -13,9 +13,14 @@ import fs from "fs";
 import rateLimit from "express-rate-limit";
 import { GoogleGenAI } from "@google/genai";
 import nodemailer from "nodemailer";
+import { execSync } from "child_process";
+import sharp from "sharp";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const UPLOAD_DIR_CONFIG = process.env.UPLOAD_DIR;
+// On production (Hostinger), store uploads OUTSIDE the git-deployed folder
+// so that Git push deployments never wipe the media.
+// Set UPLOAD_DIR=/home/user/persistent_uploads in your .env on Hostinger
 let UPLOAD_DIR = UPLOAD_DIR_CONFIG || path.join(__dirname, "uploads");
 // Basic check for UPLOAD_DIR accessibility
 try {
@@ -29,6 +34,30 @@ catch (e) {
     if (!fs.existsSync(UPLOAD_DIR))
         fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
+// ─── Git Tracker Helper: Syncs DB changes to File System for Git tracking ──
+const trackChangeInGit = (filename, data, message) => {
+    try {
+        const contentDir = path.join(__dirname, "content_tracker");
+        if (!fs.existsSync(contentDir))
+            fs.mkdirSync(contentDir, { recursive: true });
+        const filePath = path.join(contentDir, filename);
+        fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+        // Only attempt auto-commit if specifically enabled or in dev
+        // On Hostinger, this might require git user.name/email to be set
+        try {
+            execSync(`git add "${filePath}"`, { cwd: __dirname });
+            // We use --allow-empty in case there are no functional changes
+            execSync(`git commit -m "Auto-track: ${message}" --allow-empty`, { cwd: __dirname });
+            console.log(`[GIT] Tracked change in ${filename}: ${message}`);
+        }
+        catch (ge) {
+            console.warn(`[GIT] Auto-commit skipped (non-critical): ${ge.message}`);
+        }
+    }
+    catch (err) {
+        console.error("[GIT] Tracker error:", err);
+    }
+};
 const PORT = parseInt(process.env.PORT || "3000", 10);
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-this";
 if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
@@ -122,11 +151,18 @@ async function startServer() {
     CREATE TABLE IF NOT EXISTS visitors (
       id INT AUTO_INCREMENT PRIMARY KEY,
       ip_address VARCHAR(255),
-      user_agent VARCHAR(255),
-      device_type VARCHAR(255),
+      user_agent TEXT,
+      device_type VARCHAR(100),
       browser VARCHAR(255),
       os VARCHAR(255),
-      path VARCHAR(255),
+      path VARCHAR(500),
+      page_title VARCHAR(255),
+      referrer VARCHAR(500),
+      screen VARCHAR(50),
+      language VARCHAR(20),
+      utm_source VARCHAR(255),
+      utm_medium VARCHAR(255),
+      utm_campaign VARCHAR(255),
       visit_time DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -175,6 +211,30 @@ async function startServer() {
         await db.exec("ALTER TABLE leads ADD COLUMN activities TEXT");
         console.log("[MIGRATE] Added CRM columns (assigned_to, quality_score, notes, activities) to leads table");
     }
+    // Migration: Add extended tracking columns to visitors table
+    let visitorsInfo = [];
+    try {
+        visitorsInfo = await db.all("SHOW COLUMNS FROM visitors");
+    }
+    catch (e) { }
+    const visitorMigrations = [
+        ['page_title', 'ALTER TABLE visitors ADD COLUMN page_title VARCHAR(255)'],
+        ['referrer', 'ALTER TABLE visitors ADD COLUMN referrer VARCHAR(500)'],
+        ['screen', 'ALTER TABLE visitors ADD COLUMN screen VARCHAR(50)'],
+        ['language', 'ALTER TABLE visitors ADD COLUMN language VARCHAR(20)'],
+        ['utm_source', 'ALTER TABLE visitors ADD COLUMN utm_source VARCHAR(255)'],
+        ['utm_medium', 'ALTER TABLE visitors ADD COLUMN utm_medium VARCHAR(255)'],
+        ['utm_campaign', 'ALTER TABLE visitors ADD COLUMN utm_campaign VARCHAR(255)'],
+    ];
+    for (const [col, sql] of visitorMigrations) {
+        if (!visitorsInfo.some((c) => c.Field === col)) {
+            try {
+                await db.exec(sql);
+            }
+            catch (e) { }
+        }
+    }
+    console.log('[MIGRATE] visitors table extended tracking columns ensured.');
     // Admin User Seeding Configuration
     const adminUsername = process.env.ADMIN_USER || "admin";
     const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
@@ -325,9 +385,12 @@ async function startServer() {
     });
     app.post("/api/settings", authenticate, async (req, res) => {
         const { settings } = req.body;
+        await db.run("DELETE FROM settings");
         for (const [key, value] of Object.entries(settings)) {
-            await db.run("REPLACE INTO settings (`key`, value) VALUES (?, ?)", [key, value ?? '']);
+            await db.run("INSERT INTO settings (key, value) VALUES (?, ?)", [key, value]);
         }
+        // Track in Git
+        trackChangeInGit("settings.json", settings, "Branding settings updated");
         res.json({ message: "Settings updated" });
     });
     app.post("/api/settings/test-email", authenticate, async (req, res) => {
@@ -721,20 +784,35 @@ async function startServer() {
     });
     // Visitor Tracking
     app.post("/api/track", async (req, res) => {
-        const { user_agent, device_type, browser, os, path: visitPath } = req.body;
-        // Basic IP extraction 
-        const ip_address = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+        const { user_agent, device_type, browser, os, path: visitPath, page_title, referrer, screen, language, utm_source, utm_medium, utm_campaign } = req.body;
+        // Extract the true client IP — take only the first entry from the proxy chain
+        const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+        const ip_address = rawIp.split(',')[0].trim();
         try {
-            // Prevent rapid duplicate logging from the same IP within a 5-minute window
-            const recentVisit = await db.get("SELECT id FROM visitors WHERE ip_address = ? AND path = ? AND visit_time > NOW() - INTERVAL 5 MINUTE", [ip_address, visitPath]);
+            // Prevent duplicate logging from the same IP on the same path within 5 minutes (MySQL syntax)
+            const recentVisit = await db.get("SELECT id FROM visitors WHERE ip_address = ? AND path = ? AND visit_time > DATE_SUB(NOW(), INTERVAL 5 MINUTE)", [ip_address, visitPath]);
             if (!recentVisit) {
-                await db.run("INSERT INTO visitors (ip_address, user_agent, device_type, browser, os, path) VALUES (?, ?, ?, ?, ?, ?)", [ip_address, user_agent || 'unknown', device_type || 'unknown', browser || 'unknown', os || 'unknown', visitPath || '/']);
+                await db.run(`INSERT INTO visitors (ip_address, user_agent, device_type, browser, os, path, page_title, referrer, screen, language, utm_source, utm_medium, utm_campaign)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+                    ip_address,
+                    user_agent || 'unknown',
+                    device_type || 'desktop',
+                    browser || 'unknown',
+                    os || 'unknown',
+                    visitPath || '/',
+                    page_title || null,
+                    (referrer && referrer !== 'direct') ? referrer : null,
+                    screen || null,
+                    language || null,
+                    utm_source || null,
+                    utm_medium || null,
+                    utm_campaign || null,
+                ]);
             }
             res.status(200).json({ success: true });
         }
         catch (error) {
             console.error("Tracking Error:", error);
-            // Fail silently to not disrupt the user
             res.status(500).json({ success: false });
         }
     });
@@ -763,14 +841,47 @@ async function startServer() {
         res.json({ url: `/api/media?f=${req.file.filename}` });
     });
     // Dynamic Media Server to bypass Hostinger Nginx static file intercepts
-    app.get("/api/media", (req, res) => {
+    // Supports on-the-fly optimization: /api/media?f=img.jpg&w=500&q=80
+    app.get("/api/media", async (req, res) => {
         const filename = req.query.f;
+        const width = parseInt(req.query.w);
+        const quality = parseInt(req.query.q) || 80;
+        const format = req.query.fmt; // webp is recommended
         if (!filename)
             return res.status(400).send("No file specified");
         const filepath = path.join(UPLOAD_DIR, filename);
         if (!fs.existsSync(filepath))
             return res.status(404).send("File not found");
-        res.sendFile(filepath);
+        // If no processing requested, send file normally
+        if (!width && !quality && !format) {
+            return res.sendFile(filepath);
+        }
+        try {
+            let pipeline = sharp(filepath);
+            if (width) {
+                pipeline = pipeline.resize(width, null, { withoutEnlargement: true });
+            }
+            if (format === 'webp') {
+                pipeline = pipeline.webp({ quality });
+            }
+            else if (filename.match(/\.(jpg|jpeg)$/i)) {
+                pipeline = pipeline.jpeg({ quality, mozjpeg: true });
+            }
+            else if (filename.match(/\.png$/i)) {
+                pipeline = pipeline.png({ quality: Math.floor(quality / 10), compressionLevel: 9 });
+            }
+            const buffer = await pipeline.toBuffer();
+            // Set appropriate content type
+            const ext = format === 'webp' ? 'webp' : path.extname(filename).slice(1);
+            res.set('Content-Type', `image/${ext}`);
+            res.set('Cache-Control', 'public, max-age=31536000, immutable');
+            res.send(buffer);
+        }
+        catch (err) {
+            console.error("[SHARP] Optimization error:", err);
+            // Fallback to original
+            res.sendFile(filepath);
+        }
     });
     // Media Library — List all uploaded files
     app.get("/api/media/list", authenticate, (req, res) => {
@@ -822,13 +933,25 @@ async function startServer() {
     app.post("/api/builder/save/:id", authenticate, async (req, res) => {
         const { draft_json } = req.body;
         await db.run("UPDATE page_state SET draft_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [JSON.stringify(draft_json), req.params.id]);
+        // Track in Git
+        trackChangeInGit(`${req.params.id}_draft.json`, draft_json, `Draft saved for ${req.params.id}`);
         res.json({ message: "Draft saved" });
     });
     app.post("/api/builder/publish/:id", authenticate, async (req, res) => {
+        const { draft_json } = req.body;
+        // 1. If draft data is sent, save it first to ensure we publish latest
+        if (draft_json) {
+            await db.run("UPDATE page_state SET draft_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [JSON.stringify(draft_json), req.params.id]);
+            trackChangeInGit(`${req.params.id}_draft.json`, draft_json, `Draft auto-saved (Publish flow) for ${req.params.id}`);
+        }
         const page = await db.get("SELECT * FROM page_state WHERE id = ?", [req.params.id]);
         if (!page)
             return res.status(404).json({ error: "Page not found" });
+        // 2. Published = Draft
         await db.run("UPDATE page_state SET published_json = draft_json, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [req.params.id]);
+        // Track in Git
+        const publishedData = JSON.parse(page.draft_json || "{}");
+        trackChangeInGit(`${req.params.id}_published.json`, publishedData, `Page published: ${req.params.id}`);
         res.json({ message: "Page published" });
     });
     // Vite middleware for development

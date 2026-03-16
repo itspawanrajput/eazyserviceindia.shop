@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useVisualBuilder } from '../context/VisualBuilderContext';
-import { X, Type, Palette, Link, Image as ImageIcon, Layout, Smartphone, Monitor, Tablet, Settings, Upload, Share2, Video, ChevronDown } from 'lucide-react';
-import { uploadFile } from '../../services/api';
+import { X, Type, Palette, Link, Image as ImageIcon, Layout, Smartphone, Monitor, Tablet, Settings, Upload, Share2, Video, ChevronDown, Library, Check, Loader2 } from 'lucide-react';
+import { uploadFile, getMediaList } from '../../services/api';
 
 const LINK_OPTIONS = [
   { label: '── Page Sections ──', value: '', disabled: true },
@@ -26,6 +26,10 @@ const EditPanel: React.FC = () => {
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const iconFileRef = useRef<HTMLInputElement>(null);
   const [applyAll, setApplyAll] = useState(false);
+  const [showMediaPicker, setShowMediaPicker] = useState(false);
+  const [mediaFiles, setMediaFiles] = useState<any[]>([]);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const [activeMediaTarget, setActiveMediaTarget] = useState<'value' | 'backgroundImage' | 'iconImage' | 'backgroundVideo' | null>(null);
 
   if (!selectedElementId) return null;
 
@@ -86,6 +90,45 @@ const EditPanel: React.FC = () => {
       console.error('Upload failed', err);
       alert('Failed to upload icon');
     }
+  };
+
+  const openMediaPicker = async (target: 'value' | 'backgroundImage' | 'iconImage' | 'backgroundVideo') => {
+    setActiveMediaTarget(target);
+    setShowMediaPicker(true);
+    setMediaLoading(true);
+    try {
+      const files = await getMediaList();
+      setMediaFiles(files);
+    } catch (err) {
+      console.error('Failed to load media', err);
+    } finally {
+      setMediaLoading(false);
+    }
+  };
+
+  const selectMedia = (fileUrl: string) => {
+    if (activeMediaTarget) {
+      updateStyle(activeMediaTarget, fileUrl);
+    }
+    setShowMediaPicker(false);
+    setActiveMediaTarget(null);
+  };
+
+  const getOptimizedUrl = (url: string, w?: number, q: number = 80, fmt: string = 'webp') => {
+    if (!url || !url.includes('/api/media')) return url;
+    
+    // Parse existing f param
+    const urlObj = new URL(url, window.location.origin);
+    const f = urlObj.searchParams.get('f');
+    if (!f) return url;
+
+    const newUrl = new URL('/api/media', window.location.origin);
+    newUrl.searchParams.set('f', f);
+    if (w) newUrl.searchParams.set('w', w.toString());
+    if (q) newUrl.searchParams.set('q', q.toString());
+    if (fmt) newUrl.searchParams.set('fmt', fmt);
+    
+    return newUrl.pathname + newUrl.search;
   };
 
   const isSocial = selectedElementType === 'social';
@@ -160,10 +203,17 @@ const EditPanel: React.FC = () => {
                 <input type="file" ref={iconFileRef} onChange={handleIconUpload} className="hidden" accept="image/*,.gif,.svg" />
                 <button
                   onClick={() => iconFileRef.current?.click()}
-                  className="p-2 bg-pink-50 text-pink-600 rounded-lg hover:bg-pink-100 transition-all"
+                  className="p-2 bg-pink-50 text-pink-600 rounded-lg hover:bg-pink-100 transition-all border border-pink-100"
                   title="Upload Icon"
                 >
                   <Upload className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => openMediaPicker('iconImage')}
+                  className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all border border-blue-100"
+                  title="Select from Media Library"
+                >
+                  <Library className="w-4 h-4" />
                 </button>
               </div>
               {currentStyles.iconImage && (
@@ -235,10 +285,17 @@ const EditPanel: React.FC = () => {
                 <input type="file" ref={iconFileRef} onChange={handleIconUpload} className="hidden" accept="image/*,.gif,.svg" />
                 <button
                   onClick={() => iconFileRef.current?.click()}
-                  className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-all"
+                  className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-all border border-green-100"
                   title="Upload Icon"
                 >
                   <Upload className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => openMediaPicker('iconImage')}
+                  className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all border border-blue-100"
+                  title="Select from Media Library"
+                >
+                  <Library className="w-4 h-4" />
                 </button>
               </div>
               {currentStyles.iconImage && (
@@ -274,12 +331,64 @@ const EditPanel: React.FC = () => {
                 <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*,.gif,.svg" />
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-2 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-all"
-                  title="Upload Image"
+                  className="p-2 bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-all border border-orange-100"
+                  title="Upload New"
                 >
                   <Upload className="w-4 h-4" />
                 </button>
+                <button
+                  onClick={() => openMediaPicker('value')}
+                  className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all border border-blue-100"
+                  title="Select from Media Library"
+                >
+                  <Library className="w-4 h-4" />
+                </button>
               </div>
+
+              {/* Optimization Options */}
+              {currentStyles.value && currentStyles.value.includes('/api/media') && (
+                <div className="mt-3 p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Settings className="w-3 h-3 text-slate-500" />
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Web Optimization</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Max Width</label>
+                      <select 
+                        className="w-full p-1.5 bg-white border border-slate-200 rounded text-xs"
+                        value={new URL(currentStyles.value, window.location.origin).searchParams.get('w') || ''}
+                        onChange={(e) => updateStyle('value', getOptimizedUrl(currentStyles.value, e.target.value ? parseInt(e.target.value) : undefined, parseInt(new URL(currentStyles.value, window.location.origin).searchParams.get('q') || '80')))}
+                      >
+                        <option value="">Original</option>
+                        <option value="400">400px (Icon)</option>
+                        <option value="800">800px (Normal)</option>
+                        <option value="1200">1200px (Large)</option>
+                        <option value="1920">1920px (Full)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Quality</label>
+                      <select 
+                        className="w-full p-1.5 bg-white border border-slate-200 rounded text-xs"
+                        value={new URL(currentStyles.value, window.location.origin).searchParams.get('q') || '80'}
+                        onChange={(e) => updateStyle('value', getOptimizedUrl(currentStyles.value, parseInt(new URL(currentStyles.value, window.location.origin).searchParams.get('w') || '0'), parseInt(e.target.value)))}
+                      >
+                        <option value="100">100%</option>
+                        <option value="90">90%</option>
+                        <option value="80">80% (Best Balance)</option>
+                        <option value="60">60% (Fast Load)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => updateStyle('value', getOptimizedUrl(currentStyles.value, parseInt(new URL(currentStyles.value, window.location.origin).searchParams.get('w') || '0'), parseInt(new URL(currentStyles.value, window.location.origin).searchParams.get('q') || '80'), 'webp'))}
+                    className={`w-full py-1.5 rounded text-[10px] font-black uppercase transition-all ${currentStyles.value.includes('fmt=webp') ? 'bg-green-600 text-white' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}`}
+                  >
+                    {currentStyles.value.includes('fmt=webp') ? '✓ Optimized for Web (WebP)' : 'Convert to WebP'}
+                  </button>
+                </div>
+              )}
 
               {/* Image Preview */}
               {currentStyles.value && (
@@ -443,12 +552,63 @@ const EditPanel: React.FC = () => {
                 <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*,.gif" />
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-2 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-all"
+                  className="p-2 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-all border border-purple-100"
                   title="Upload Image / GIF"
                 >
                   <Upload className="w-4 h-4" />
                 </button>
+                <button
+                  onClick={() => openMediaPicker('backgroundImage')}
+                  className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-all border border-blue-100"
+                  title="Select from Media Library"
+                >
+                  <Library className="w-4 h-4" />
+                </button>
               </div>
+
+              {/* Optimization Options for BG */}
+              {currentStyles.backgroundImage && currentStyles.backgroundImage.includes('/api/media') && (
+                <div className="mt-3 p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Settings className="w-3 h-3 text-slate-500" />
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">BG Optimization</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Max Width</label>
+                      <select 
+                        className="w-full p-1.5 bg-white border border-slate-200 rounded text-xs"
+                        value={new URL(currentStyles.backgroundImage, window.location.origin).searchParams.get('w') || ''}
+                        onChange={(e) => updateStyle('backgroundImage', getOptimizedUrl(currentStyles.backgroundImage, e.target.value ? parseInt(e.target.value) : undefined, parseInt(new URL(currentStyles.backgroundImage, window.location.origin).searchParams.get('q') || '80')))}
+                      >
+                        <option value="">Original</option>
+                        <option value="800">800px</option>
+                        <option value="1200">1200px</option>
+                        <option value="1920">1920px (Desktop)</option>
+                        <option value="2560">2560px (Ultra)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Quality</label>
+                      <select 
+                        className="w-full p-1.5 bg-white border border-slate-200 rounded text-xs"
+                        value={new URL(currentStyles.backgroundImage, window.location.origin).searchParams.get('q') || '80'}
+                        onChange={(e) => updateStyle('backgroundImage', getOptimizedUrl(currentStyles.backgroundImage, parseInt(new URL(currentStyles.backgroundImage, window.location.origin).searchParams.get('w') || '0'), parseInt(e.target.value)))}
+                      >
+                        <option value="100">100%</option>
+                        <option value="80">80%</option>
+                        <option value="60">60%</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => updateStyle('backgroundImage', getOptimizedUrl(currentStyles.backgroundImage, parseInt(new URL(currentStyles.backgroundImage, window.location.origin).searchParams.get('w') || '0'), parseInt(new URL(currentStyles.backgroundImage, window.location.origin).searchParams.get('q') || '80'), 'webp'))}
+                    className={`w-full py-1.5 rounded text-[10px] font-black uppercase transition-all ${currentStyles.backgroundImage.includes('fmt=webp') ? 'bg-green-600 text-white' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}`}
+                  >
+                    {currentStyles.backgroundImage.includes('fmt=webp') ? '✓ Optimized as WebP' : 'Convert BG to WebP'}
+                  </button>
+                </div>
+              )}
               {currentStyles.backgroundImage && (
                 <div className="mt-2 relative">
                   <img src={currentStyles.backgroundImage} alt="bg preview" className="w-full h-16 object-cover rounded-lg border border-slate-200" referrerPolicy="no-referrer" />
@@ -628,6 +788,81 @@ const EditPanel: React.FC = () => {
           DONE
         </button>
       </div>
+
+      {/* ─── MEDIA PICKER OVERLAY ─── */}
+      {showMediaPicker && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 md:p-10 pointer-events-none">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm pointer-events-auto" onClick={() => setShowMediaPicker(false)}></div>
+          <div className="relative w-full max-w-4xl max-h-full bg-white rounded-[40px] shadow-2xl overflow-hidden flex flex-col pointer-events-auto border border-slate-200 animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-600 rounded-2xl">
+                  <Library className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-slate-900">Media Library</h2>
+                  <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Select a file from your uploads</p>
+                </div>
+              </div>
+              <button onClick={() => setShowMediaPicker(false)} className="p-3 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all shadow-sm">
+                <X className="w-6 h-6 text-slate-400" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-8">
+              {mediaLoading ? (
+                <div className="h-64 flex flex-col items-center justify-center gap-4">
+                  <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+                  <span className="text-sm font-black text-slate-400 uppercase tracking-widest">Loading Library...</span>
+                </div>
+              ) : mediaFiles.length === 0 ? (
+                <div className="h-64 flex flex-col items-center justify-center gap-4 text-slate-300">
+                  <ImageIcon className="w-20 h-20" />
+                  <span className="text-sm font-black uppercase tracking-widest">Your library is empty</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+                  {mediaFiles.map((file) => (
+                    <div 
+                      key={file.name} 
+                      onClick={() => selectMedia(file.url)}
+                      className={`group relative aspect-square rounded-[32px] overflow-hidden border-2 transition-all cursor-pointer ${currentStyles[activeMediaTarget || ''] === file.url ? 'border-blue-600 ring-4 ring-blue-100' : 'border-slate-100 hover:border-blue-300 hover:scale-[1.02]'}`}
+                    >
+                      {file.isVideo ? (
+                        <div className="w-full h-full bg-slate-900 flex items-center justify-center">
+                          <Video className="w-12 h-12 text-white/50" />
+                        </div>
+                      ) : (
+                        <img src={file.url} alt={file.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      )}
+                      
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <p className="text-[10px] text-white font-black truncate">{file.name}</p>
+                      </div>
+
+                      {currentStyles[activeMediaTarget || ''] === file.url && (
+                        <div className="absolute top-3 right-3 bg-blue-600 text-white p-2 rounded-2xl shadow-xl">
+                          <Check className="w-4 h-4" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-400">{mediaFiles.length} files in library</span>
+              <button 
+                onClick={() => setShowMediaPicker(false)}
+                className="px-8 py-3 bg-slate-900 text-white rounded-2xl font-black text-sm hover:bg-slate-800 transition-all shadow-xl shadow-slate-200"
+              >
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -14,6 +14,7 @@ import rateLimit from "express-rate-limit";
 import { GoogleGenAI } from "@google/genai";
 import nodemailer from "nodemailer";
 import { execSync } from "child_process";
+import sharp from "sharp";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -912,12 +913,49 @@ async function startServer() {
   });
 
   // Dynamic Media Server to bypass Hostinger Nginx static file intercepts
-  app.get("/api/media", (req, res) => {
+  // Supports on-the-fly optimization: /api/media?f=img.jpg&w=500&q=80
+  app.get("/api/media", async (req, res) => {
     const filename = req.query.f as string;
+    const width = parseInt(req.query.w as string);
+    const quality = parseInt(req.query.q as string) || 80;
+    const format = req.query.fmt as string; // webp is recommended
+
     if (!filename) return res.status(400).send("No file specified");
     const filepath = path.join(UPLOAD_DIR, filename);
     if (!fs.existsSync(filepath)) return res.status(404).send("File not found");
-    res.sendFile(filepath);
+
+    // If no processing requested, send file normally
+    if (!width && !quality && !format) {
+      return res.sendFile(filepath);
+    }
+
+    try {
+      let pipeline = sharp(filepath);
+
+      if (width) {
+        pipeline = pipeline.resize(width, null, { withoutEnlargement: true });
+      }
+
+      if (format === 'webp') {
+        pipeline = pipeline.webp({ quality });
+      } else if (filename.match(/\.(jpg|jpeg)$/i)) {
+        pipeline = pipeline.jpeg({ quality, mozjpeg: true });
+      } else if (filename.match(/\.png$/i)) {
+        pipeline = pipeline.png({ quality: Math.floor(quality / 10), compressionLevel: 9 });
+      }
+
+      const buffer = await pipeline.toBuffer();
+      
+      // Set appropriate content type
+      const ext = format === 'webp' ? 'webp' : path.extname(filename).slice(1);
+      res.set('Content-Type', `image/${ext}`);
+      res.set('Cache-Control', 'public, max-age=31536000, immutable');
+      res.send(buffer);
+    } catch (err) {
+      console.error("[SHARP] Optimization error:", err);
+      // Fallback to original
+      res.sendFile(filepath);
+    }
   });
 
   // Media Library — List all uploaded files
@@ -983,9 +1021,21 @@ async function startServer() {
   });
 
   app.post("/api/builder/publish/:id", authenticate, async (req, res) => {
+    const { draft_json } = req.body;
+    
+    // 1. If draft data is sent, save it first to ensure we publish latest
+    if (draft_json) {
+      await db.run(
+        "UPDATE page_state SET draft_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        [JSON.stringify(draft_json), req.params.id]
+      );
+      trackChangeInGit(`${req.params.id}_draft.json`, draft_json, `Draft auto-saved (Publish flow) for ${req.params.id}`);
+    }
+
     const page = await db.get("SELECT * FROM page_state WHERE id = ?", [req.params.id]);
     if (!page) return res.status(404).json({ error: "Page not found" });
 
+    // 2. Published = Draft
     await db.run(
       "UPDATE page_state SET published_json = draft_json, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
       [req.params.id]
