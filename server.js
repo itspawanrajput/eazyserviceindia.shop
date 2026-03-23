@@ -37,17 +37,29 @@ catch (e) {
 // ─── Git Tracker Helper: Syncs DB changes to File System for Git tracking ──
 const trackChangeInGit = (filename, data, message) => {
     try {
-        const contentDir = path.join(__dirname, "content_tracker");
-        if (!fs.existsSync(contentDir))
-            fs.mkdirSync(contentDir, { recursive: true });
-        const filePath = path.join(contentDir, filename);
-        fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+        const isUpload = filename.startsWith('uploads/');
+        const filePath = isUpload ? path.join(__dirname, filename) : path.join(__dirname, "content_tracker", filename);
+        // For tracker files, ensure directory exists and write JSON
+        if (!isUpload) {
+            const contentDir = path.dirname(filePath);
+            if (!fs.existsSync(contentDir))
+                fs.mkdirSync(contentDir, { recursive: true });
+            fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+        }
         // Only attempt auto-commit if specifically enabled or in dev
-        // On Hostinger, this might require git user.name/email to be set
+        // On Hostinger, this might require git user.name/email and remote token to be set
         try {
             execSync(`git add "${filePath}"`, { cwd: __dirname });
             // We use --allow-empty in case there are no functional changes
             execSync(`git commit -m "Auto-track: ${message}" --allow-empty`, { cwd: __dirname });
+            // Auto-push to GitHub so the media is persistent across deployments
+            try {
+                execSync(`git push origin main`, { cwd: __dirname });
+                console.log(`[GIT] Successfully pushed ${filename} to GitHub`);
+            }
+            catch (pe) {
+                console.warn(`[GIT] Push skipped/failed: ${pe.message}`);
+            }
             console.log(`[GIT] Tracked change in ${filename}: ${message}`);
         }
         catch (ge) {
@@ -837,8 +849,11 @@ async function startServer() {
     app.post("/api/upload", authenticate, upload.single("file"), (req, res) => {
         if (!req.file)
             return res.status(400).json({ error: "No file uploaded" });
+        // For GitHub storage: Track new file in Git immediately
+        const fullPath = path.join(UPLOAD_DIR, req.file.filename);
+        trackChangeInGit(`uploads/${req.file.filename}`, {}, `Media upload: ${req.file.filename}`);
         // Use an API route to bypass Hostinger Nginx intercepting static file extensions
-        res.json({ url: `/api/media?f=${req.file.filename}` });
+        res.json({ url: `/api/media?f=${req.file.filename}`, filename: req.file.filename });
     });
     // Dynamic Media Server to bypass Hostinger Nginx static file intercepts
     // Supports on-the-fly optimization: /api/media?f=img.jpg&w=500&q=80
