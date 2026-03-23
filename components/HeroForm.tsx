@@ -28,21 +28,21 @@ const HeroForm: React.FC = () => {
         } else {
           // Fallback to default fields
           setFields([
-            { id: 'name', type: 'text', placeholder: 'Your Name', required: true },
-            { id: 'phone', type: 'tel', placeholder: 'Phone Number', required: true },
-            { id: 'email', type: 'email', placeholder: 'Email Address', required: false },
-            { id: 'location', type: 'text', placeholder: 'Location / Area', required: false },
-            { id: 'service_type', type: 'select', options: ['Service & Cleaning', 'Repair & Parts', 'Installation/Uninstalltion', 'Gas Refill'], required: true },
-            { id: 'message', type: 'textarea', placeholder: 'Describe your problem here......', required: false }
+            { id: 'name', label: 'Full Name', type: 'text', placeholder: 'Your Name', required: true },
+            { id: 'phone', label: 'Phone Number', type: 'tel', placeholder: 'Phone Number', required: true },
+            { id: 'email', label: 'Email Address', type: 'email', placeholder: 'Email Address', required: false },
+            { id: 'location', label: 'Location / Area', type: 'text', placeholder: 'Location / Area', required: false },
+            { id: 'service_type', label: 'Service Category', type: 'select', options: ['Service & Cleaning', 'Repair & Parts', 'Installation/Uninstalltion', 'Gas Refill'], required: true },
+            { id: 'message', label: 'Message (Optional)', type: 'textarea', placeholder: 'Describe your problem here......', required: false }
           ]);
         }
       } catch (e) {
         console.error("Failed to load hero form config", e);
         // Fallback
         setFields([
-          { id: 'name', type: 'text', placeholder: 'Your Name', required: true },
-          { id: 'phone', type: 'tel', placeholder: 'Phone Number', required: true },
-          { id: 'service_type', type: 'select', options: ['Service & Cleaning', 'Repair & Parts', 'Installation/Uninstalltion', 'Gas Refill'], required: true }
+          { id: 'name', label: 'Your Name', type: 'text', placeholder: 'Your Name', required: true },
+          { id: 'phone', label: 'Phone Number', type: 'tel', placeholder: 'Phone Number', required: true },
+          { id: 'service_type', label: 'Service Category', type: 'select', options: ['Service & Cleaning', 'Repair & Parts', 'Installation/Uninstalltion', 'Gas Refill'], required: true }
         ]);
       }
     };

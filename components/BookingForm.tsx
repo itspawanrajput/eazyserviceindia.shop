@@ -40,7 +40,7 @@ const BookingForm: React.FC = () => {
         setFields([
           { id: 'name', label: 'Full Name', type: 'text', placeholder: 'Enter name', required: true },
           { id: 'phone', label: 'Phone Number', type: 'tel', placeholder: 'Enter number', required: true },
-          { id: 'service_type', label: 'Service Type', type: 'select', options: ['Service & Cleaning', 'Repair & Parts', 'Installation/Uninstallation', 'Gas Refill'], required: true }
+          { id: 'service_type', label: 'Service Category', type: 'select', options: ['Service & Cleaning', 'Repair & Parts', 'Installation/Uninstallation', 'Gas Refill'], required: true }
         ]);
       }
     };

@@ -30,7 +30,24 @@ const LeadManagement: React.FC = () => {
   const fetchLeads = async () => {
     try {
       const data = await getLeads();
-      setLeads(data);
+      // Pre-process leads to extract data from custom_data fallback
+      const processedLeads = data.map((l: Lead) => {
+        if (!l.custom_data) return l;
+        try {
+          const custom = JSON.parse(l.custom_data);
+          return {
+            ...l,
+            name: l.name || custom.name || custom.full_name || custom.userName || custom.CustomerName || l.name,
+            phone: l.phone || custom.phone || custom.phoneNumber || custom.mobile || custom.contact || l.phone,
+            email: l.email || custom.email || custom.emailAddress || custom.mail || l.email,
+            location: l.location || custom.location || custom.address || custom.area || l.location,
+            service_type: l.service_type || custom.service_type || custom.service || custom.category || l.service_type
+          };
+        } catch (e) {
+          return l;
+        }
+      });
+      setLeads(processedLeads);
     } catch (err) {
       console.error('Failed to fetch leads');
     } finally {
@@ -144,10 +161,14 @@ const LeadManagement: React.FC = () => {
     out_of_area: 'bg-orange-100 text-orange-600'
   };
   const filteredLeads = leads.filter(lead => {
+    const name = lead.name || '';
+    const phone = lead.phone || '';
+    const email = lead.email || '';
+    
     const matchesSearch =
-      lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lead.phone.includes(searchTerm) ||
-      lead.email.toLowerCase().includes(searchTerm.toLowerCase());
+      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      phone.includes(searchTerm) ||
+      email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
     const matchesSource = sourceFilter === 'all' || (lead.source || 'unknown') === sourceFilter;
     return matchesSearch && matchesStatus && matchesSource;
@@ -242,20 +263,20 @@ const LeadManagement: React.FC = () => {
                   <tr key={lead.id} className="hover:bg-slate-50 transition-colors group">
                     <td className="p-6">
                       <div className="flex flex-col">
-                        <span className="font-black text-slate-900 mb-1">{lead.name}</span>
+                        <span className="font-black text-slate-900 mb-1">{lead.name || 'No Name'}</span>
                         <div className="flex items-center gap-4 text-xs text-slate-500 font-medium">
-                          <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {lead.phone}</span>
-                          <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {lead.email}</span>
+                          <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {lead.phone || 'N/A'}</span>
+                          <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {lead.email || 'N/A'}</span>
                         </div>
                       </div>
                     </td>
                     <td className="p-6">
                       <div className="flex flex-col">
                         <span className="bg-blue-50 text-blue-600 text-[10px] font-black px-2 py-1 rounded-lg uppercase tracking-wider w-fit mb-2">
-                          {lead.service_type}
+                          {lead.service_type || 'General'}
                         </span>
                         <span className="flex items-center gap-1 text-xs text-slate-500 font-bold">
-                          <MapPin className="w-3 h-3" /> {lead.location}
+                          <MapPin className="w-3 h-3" /> {lead.location || 'No Location'}
                         </span>
                       </div>
                     </td>
@@ -308,7 +329,7 @@ const LeadManagement: React.FC = () => {
                     <td className="p-6">
                       <div className="flex items-center gap-1.5">
                         <a
-                          href={`https://wa.me/${lead.phone.replace(/[^0-9]/g, '')}`}
+                          href={`https://wa.me/${(lead.phone || '').replace(/[^0-9]/g, '')}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="p-2 text-[#25D366] hover:bg-green-50 rounded-xl transition-all"
@@ -317,7 +338,7 @@ const LeadManagement: React.FC = () => {
                           <MessageSquare className="w-4 h-4" />
                         </a>
                         <a
-                          href={`tel:${lead.phone.replace(/[^0-9+]/g, '')}`}
+                          href={`tel:${(lead.phone || '').replace(/[^0-9+]/g, '')}`}
                           className="p-2 text-blue-500 hover:bg-blue-50 rounded-xl transition-all"
                           title="Call"
                         >
@@ -354,26 +375,26 @@ const LeadManagement: React.FC = () => {
             <div className="bg-white px-6 py-4 border-b border-slate-200 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-black text-lg">
-                  {selectedLead.name.charAt(0)}
+                  {(selectedLead.name || '?').charAt(0)}
                 </div>
                 <div>
-                  <h3 className="text-xl font-black text-slate-900 leading-none">{selectedLead.name}</h3>
+                  <h3 className="text-xl font-black text-slate-900 leading-none">{selectedLead.name || 'No Name'}</h3>
                   <div className="flex items-center gap-2 mt-1.5 text-xs text-slate-500 font-medium">
                     <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {selectedLead.email || 'No email provided'}</span>
                     <span className="text-slate-300">•</span>
-                    <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {selectedLead.phone}</span>
+                    <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {selectedLead.phone || 'N/A'}</span>
                   </div>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <a
-                  href={`tel:${selectedLead.phone.replace(/[^0-9+]/g, '')}`}
+                  href={`tel:${(selectedLead.phone || '').replace(/[^0-9+]/g, '')}`}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-bold shadow hover:bg-green-700 transition flex items-center gap-2"
                 >
                   <Phone className="w-4 h-4" /> Call
                 </a>
                 <a
-                  href={`https://wa.me/${selectedLead.phone.replace(/[^0-9]/g, '')}`}
+                  href={`https://wa.me/${(selectedLead.phone || '').replace(/[^0-9]/g, '')}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-4 py-2 bg-[#25D366] text-white rounded-lg text-sm font-bold shadow hover:bg-[#20bd5a] transition flex items-center gap-2"
@@ -461,7 +482,7 @@ const LeadManagement: React.FC = () => {
                         <>
                           <div>
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Phone Number</p>
-                            <a href={`tel:${selectedLead.phone}`} className="text-sm font-bold text-blue-600 hover:underline">{selectedLead.phone}</a>
+                            <a href={`tel:${selectedLead.phone || ''}`} className="text-sm font-bold text-blue-600 hover:underline">{selectedLead.phone || 'N/A'}</a>
                           </div>
                           <div>
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Email Address</p>
@@ -496,7 +517,7 @@ const LeadManagement: React.FC = () => {
                     })()}
                     <div>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Service Type</p>
-                      <span className="text-sm font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded inline-block">{selectedLead.service_type}</span>
+                      <span className="text-sm font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded inline-block">{selectedLead.service_type || 'General Service'}</span>
                     </div>
                     <div className="md:col-span-2">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Customer Message</p>
