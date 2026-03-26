@@ -25,7 +25,7 @@ const UPLOAD_DIR_CONFIG = process.env.UPLOAD_DIR;
 // On production (Hostinger), store uploads OUTSIDE the git-deployed folder
 // so that Git push deployments never wipe the media.
 // Set UPLOAD_DIR=/home/user/persistent_uploads in your .env on Hostinger
-let UPLOAD_DIR = UPLOAD_DIR_CONFIG || path.join(__dirname, "uploads");
+let UPLOAD_DIR = UPLOAD_DIR_CONFIG ? path.resolve(process.cwd(), UPLOAD_DIR_CONFIG) : path.join(__dirname, "uploads");
 
 // Basic check for UPLOAD_DIR accessibility
 try {
