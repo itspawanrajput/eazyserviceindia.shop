@@ -15,6 +15,9 @@ import { GoogleGenAI } from "@google/genai";
 import nodemailer from "nodemailer";
 import { execSync } from "child_process";
 import sharp from "sharp";
+import crypto from "crypto";
+import axios from "axios";
+import { UAParser } from "ua-parser-js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -190,6 +193,27 @@ async function startServer() {
       fields_json TEXT,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS error_logs (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      level VARCHAR(20) DEFAULT 'error',
+      message TEXT,
+      stack TEXT,
+      source VARCHAR(50) DEFAULT 'api',
+      endpoint VARCHAR(500),
+      ip_address VARCHAR(255),
+      user_agent TEXT,
+      meta TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS chatbot_messages (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      session_id VARCHAR(255),
+      role VARCHAR(20),
+      content TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   // Initialize page state if empty
@@ -290,6 +314,82 @@ async function startServer() {
     max: 20, // limit each IP to 20 leads per hour
     message: { error: "Too many lead submissions, please try again later" }
   });
+
+  const chatLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 10, // 10 messages per minute per IP
+    message: { error: "Too many messages, please slow down" }
+  });
+
+  // ─── Error Logging Helper ──────────────────────────────────────────────
+  const logError = async (level: 'error' | 'warn' | 'info', message: string, details?: { stack?: string; source?: string; endpoint?: string; ip?: string; userAgent?: string; meta?: any }) => {
+    try {
+      await db.run(
+        "INSERT INTO error_logs (level, message, stack, source, endpoint, ip_address, user_agent, meta) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+          level,
+          message,
+          details?.stack || null,
+          details?.source || 'api',
+          details?.endpoint || null,
+          details?.ip || null,
+          details?.userAgent || null,
+          details?.meta ? JSON.stringify(details.meta) : null
+        ]
+      );
+    } catch (e) {
+      // Fallback to console if DB logging fails
+      console.error('[LOG ERROR] Failed to write error log to DB:', e);
+    }
+    // Always also console log
+    if (level === 'error') console.error(`[${details?.source?.toUpperCase() || 'API'}] ${message}`);
+    else if (level === 'warn') console.warn(`[${details?.source?.toUpperCase() || 'API'}] ${message}`);
+    else console.log(`[${details?.source?.toUpperCase() || 'API'}] ${message}`);
+  };
+
+  // ─── Meta Conversions API Helper ─────────────────────────────────────────
+  const sendMetaCAPIEvent = async (eventName: string, userData: any, customData: any, req: any) => {
+    try {
+      const rows = await db.all("SELECT * FROM settings");
+      const settings = rows.reduce((acc: any, row: any) => ({ ...acc, [row.key]: row.value }), {});
+      
+      const pixelId = settings.metaPixelId;
+      const accessToken = settings.metaAccessToken;
+
+      if (!pixelId || !accessToken) return;
+
+      const hash = (str: string) => str ? crypto.createHash('sha256').update(str.trim().toLowerCase()).digest('hex') : null;
+      
+      const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;
+      const userAgent = req.headers['user-agent'];
+      const fbp = req.cookies['_fbp'];
+      const fbc = req.cookies['_fbc'];
+
+      const eventData = {
+        data: [{
+          event_name: eventName,
+          event_time: Math.floor(Date.now() / 1000),
+          action_source: "website",
+          event_source_url: req.headers.referer || settings.siteUrl || "",
+          user_data: {
+            em: userData.email ? [hash(userData.email)] : [],
+            ph: userData.phone ? [hash(userData.phone)] : [],
+            client_ip_address: ip,
+            client_user_agent: userAgent,
+            fbp: fbp || null,
+            fbc: fbc || null
+          },
+          custom_data: customData,
+          event_id: customData.event_id // Used for deduplication with browser pixel
+        }]
+      };
+
+      await axios.post(`https://graph.facebook.com/v19.0/${pixelId}/events?access_token=${accessToken}`, eventData);
+      console.log(`[META CAPI] Sent ${eventName} event for ${userData.email || userData.phone}`);
+    } catch (err: any) {
+      console.error("[META CAPI ERROR]", err.response?.data || err.message);
+    }
+  };
 
   app.use(cors());
   app.use(express.json());
@@ -574,6 +674,15 @@ async function startServer() {
       );
 
       res.json({ message: "Lead saved" });
+
+      // Fire Meta CAPI Lead Event
+      const event_id = req.body.event_id || `lead_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      sendMetaCAPIEvent('Lead', { email, phone, name }, { 
+        service: service_type, 
+        location: location,
+        event_id: event_id 
+      }, req);
+
     } catch (dbError) {
       console.error("[LEAD SUBMISSION ERROR]", dbError);
       return res.status(500).json({ error: "Failed to save lead. Please try again." });
@@ -1075,6 +1184,265 @@ async function startServer() {
     res.json({ message: "Page published" });
   });
 
+  // ─── Error Logs API ──────────────────────────────────────────────────
+  app.get("/api/error-logs/stats", authenticate, async (req, res) => {
+    try {
+      const stats = await db.get(`
+        SELECT
+          COUNT(*) as total,
+          SUM(CASE WHEN level = 'error' THEN 1 ELSE 0 END) as errors,
+          SUM(CASE WHEN level = 'warn' THEN 1 ELSE 0 END) as warnings,
+          SUM(CASE WHEN level = 'info' THEN 1 ELSE 0 END) as infos,
+          SUM(CASE WHEN created_at > NOW() - INTERVAL 24 HOUR THEN 1 ELSE 0 END) as last_24h,
+          SUM(CASE WHEN level = 'error' AND created_at > NOW() - INTERVAL 24 HOUR THEN 1 ELSE 0 END) as errors_24h
+        FROM error_logs
+      `);
+      res.json(stats);
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to fetch error log stats" });
+    }
+  });
+
+  app.get("/api/error-logs", authenticate, async (req, res) => {
+    try {
+      const { level, source, limit = '100', offset = '0', search } = req.query as any;
+      let sql = "SELECT id, level, message, source, endpoint, ip_address, created_at FROM error_logs";
+      const conditions: string[] = [];
+      const params: any[] = [];
+
+      if (level) { conditions.push("level = ?"); params.push(level); }
+      if (source) { conditions.push("source = ?"); params.push(source); }
+      if (search) { conditions.push("(message LIKE ? OR endpoint LIKE ?)"); params.push(`%${search}%`, `%${search}%`); }
+
+      if (conditions.length > 0) sql += " WHERE " + conditions.join(" AND ");
+      sql += " ORDER BY created_at DESC";
+      sql += ` LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`;
+
+      const logs = await db.all(sql, params);
+      const countSql = conditions.length > 0
+        ? `SELECT COUNT(*) as total FROM error_logs WHERE ${conditions.join(" AND ")}`
+        : "SELECT COUNT(*) as total FROM error_logs";
+      const countResult = await db.get(countSql, params);
+
+      res.json({ logs, total: countResult?.total || 0 });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to fetch error logs" });
+    }
+  });
+
+  app.get("/api/error-logs/:id", authenticate, async (req, res) => {
+    try {
+      const log = await db.get("SELECT * FROM error_logs WHERE id = ?", [req.params.id]);
+      if (!log) return res.status(404).json({ error: "Log not found" });
+      res.json(log);
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to fetch error log" });
+    }
+  });
+
+  app.delete("/api/error-logs/:id", authenticate, async (req, res) => {
+    try {
+      await db.run("DELETE FROM error_logs WHERE id = ?", [req.params.id]);
+      res.json({ message: "Log deleted" });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to delete error log" });
+    }
+  });
+
+  app.delete("/api/error-logs", authenticate, async (req, res) => {
+    try {
+      await db.run("DELETE FROM error_logs");
+      res.json({ message: "All logs cleared" });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to clear error logs" });
+    }
+  });
+
+  // Client-side error capture (public endpoint)
+  app.post("/api/error-logs/client", async (req, res) => {
+    const { message, stack, url, line, col } = req.body;
+    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    await logError('error', message || 'Client-side error', {
+      stack: stack || `at ${url}:${line}:${col}`,
+      source: 'frontend',
+      endpoint: url,
+      ip,
+      userAgent: req.headers['user-agent'] || 'unknown'
+    });
+    res.json({ success: true });
+  });
+
+  // ─── AI Chatbot API ──────────────────────────────────────────────────
+  app.get("/api/chat/config", async (req, res) => {
+    try {
+      const rows = await db.all("SELECT * FROM settings");
+      const settings = rows.reduce((acc: any, row: any) => ({ ...acc, [row.key]: row.value }), {});
+      res.json({
+        enabled: settings.chatbot_enabled === 'true',
+        greeting: settings.chatbot_greeting || "Hi! 👋 I'm EazyService AI assistant. How can I help you with your AC service needs today?"
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to fetch chat config" });
+    }
+  });
+
+  app.post("/api/chat", chatLimiter, async (req, res) => {
+    const { message, sessionId } = req.body;
+    if (!message || !sessionId) return res.status(400).json({ error: "Message and sessionId required" });
+
+    try {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return res.status(503).json({ error: "AI chatbot is not configured. Please add GEMINI_API_KEY." });
+      }
+
+      // Store user message
+      await db.run(
+        "INSERT INTO chatbot_messages (session_id, role, content) VALUES (?, ?, ?)",
+        [sessionId, 'user', message]
+      );
+
+      // Load conversation history (last 20 messages for context)
+      const history = await db.all(
+        "SELECT role, content FROM chatbot_messages WHERE session_id = ? ORDER BY created_at ASC",
+        [sessionId]
+      );
+      const recentHistory = history.slice(-20);
+
+      // Get custom system prompt from settings
+      const systemPromptRow = await db.get("SELECT value FROM settings WHERE `key` = 'chatbot_system_prompt'");
+      const customPrompt = systemPromptRow?.value || '';
+
+      const systemPrompt = `You are a helpful AI customer support assistant for EazyService — Delhi-NCR's trusted AC service company.
+
+Key facts about EazyService:
+- Services: AC Cleaning (Dry & Wet), AC Repair, AC Installation/Uninstallation, AC Gas Refilling (R22, R32, R410A)
+- Service areas: Delhi, Gurgaon, Noida, Faridabad, Ghaziabad — across Delhi-NCR
+- Response time: Technician at your doorstep within 20 minutes
+- Guarantee: 1-month free repeat visit guarantee on all services
+- Rating: 4.8 stars on Google with thousands of happy customers
+- Available: 7 days a week, 8 AM to 10 PM
+- Contact: Call +91 9911481331 or book online
+
+${customPrompt}
+
+Instructions:
+- Be friendly, concise, and helpful.
+- Answer questions about AC services, pricing, and availability.
+- If the user wants to book, ask for their name, phone number, and service type, then tell them to book via the form on the website or call +91 9911481331.
+- If you don't know something specific about pricing, say the team will provide exact pricing after inspection.
+- Keep responses short (2-3 sentences max) unless the user asks for details.
+- Respond in the same language the user writes in (Hindi, English, or Hinglish).`;
+
+      // Build Gemini conversation
+      const ai = new GoogleGenAI({ apiKey });
+
+      const chatContents = recentHistory.map(m => ({
+        role: m.role === 'user' ? 'user' as const : 'model' as const,
+        parts: [{ text: m.content }]
+      }));
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-1.5-flash',
+        contents: chatContents,
+        config: {
+          systemInstruction: systemPrompt,
+        },
+      });
+
+      const reply = (response as any).text?.trim() || "I'm sorry, I couldn't process that. Please try again or call us at +91 9911481331.";
+
+      // Store AI response
+      await db.run(
+        "INSERT INTO chatbot_messages (session_id, role, content) VALUES (?, ?, ?)",
+        [sessionId, 'assistant', reply]
+      );
+
+      res.json({ reply, sessionId });
+
+    } catch (err: any) {
+      await logError('error', `Chat API error: ${err.message}`, {
+        stack: err.stack,
+        source: 'chatbot',
+        endpoint: '/api/chat'
+      });
+      res.status(500).json({ error: "Failed to get AI response. Please try again." });
+    }
+  });
+
+  // Admin: Get chat sessions
+  app.get("/api/chatbot/sessions", authenticate, async (req, res) => {
+    try {
+      const sessions = await db.all(`
+        SELECT
+          session_id,
+          COUNT(*) as message_count,
+          MIN(created_at) as started_at,
+          MAX(created_at) as last_active,
+          (SELECT content FROM chatbot_messages m2 WHERE m2.session_id = chatbot_messages.session_id AND m2.role = 'user' ORDER BY m2.created_at ASC LIMIT 1) as first_message
+        FROM chatbot_messages
+        GROUP BY session_id
+        ORDER BY MAX(created_at) DESC
+        LIMIT 50
+      `);
+      res.json(sessions);
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to fetch chat sessions" });
+    }
+  });
+
+  // Admin: Get full chat transcript
+  app.get("/api/chatbot/sessions/:sessionId", authenticate, async (req, res) => {
+    try {
+      const messages = await db.all(
+        "SELECT * FROM chatbot_messages WHERE session_id = ? ORDER BY created_at ASC",
+        [req.params.sessionId]
+      );
+      res.json(messages);
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to fetch chat transcript" });
+    }
+  });
+
+  // Admin: Update chatbot config
+  app.post("/api/chatbot/config", authenticate, async (req, res) => {
+    try {
+      const { enabled, greeting, systemPrompt } = req.body;
+      const updates: [string, string][] = [];
+      if (enabled !== undefined) updates.push(['chatbot_enabled', String(enabled)]);
+      if (greeting !== undefined) updates.push(['chatbot_greeting', greeting]);
+      if (systemPrompt !== undefined) updates.push(['chatbot_system_prompt', systemPrompt]);
+
+      for (const [key, value] of updates) {
+        const existing = await db.get("SELECT `key` FROM settings WHERE `key` = ?", [key]);
+        if (existing) {
+          await db.run("UPDATE settings SET value = ? WHERE `key` = ?", [value, key]);
+        } else {
+          await db.run("INSERT INTO settings (`key`, value) VALUES (?, ?)", [key, value]);
+        }
+      }
+
+      res.json({ message: "Chatbot config updated" });
+    } catch (err: any) {
+      res.status(500).json({ error: "Failed to update chatbot config" });
+    }
+  });
+
+  // ─── Global Error Handler ──────────────────────────────────────────────
+  app.use(async (err: any, req: any, res: any, next: any) => {
+    const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').toString().split(',')[0].trim();
+    await logError('error', err.message || 'Unhandled server error', {
+      stack: err.stack,
+      source: 'api',
+      endpoint: `${req.method} ${req.originalUrl}`,
+      ip,
+      userAgent: req.headers['user-agent']
+    });
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -1101,6 +1469,30 @@ async function startServer() {
         // Inject initial state to bypass API wait on first load
         const stateScript = `<script>window.__INITIAL_STATE__ = ${JSON.stringify(data)};</script>`;
         html = html.replace('<div id="root">', `${stateScript}<div id="root">`);
+        
+        // Inject Meta Pixel if ID is configured
+        if (settings.metaPixelId) {
+          const pixelScript = `
+<!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '${settings.metaPixelId}');
+fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=${settings.metaPixelId}&ev=PageView&noscript=1"
+/></noscript>
+<!-- End Meta Pixel Code -->
+          `;
+          html = html.replace('</head>', `${pixelScript}</head>`);
+        }
         
         res.send(html);
       } catch (err) {

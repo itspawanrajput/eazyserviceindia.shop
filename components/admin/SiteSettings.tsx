@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Globe, Layers, Image as ImageIcon, Upload, Trash2, Copy, Check,
   ChevronUp, ChevronDown, Eye, EyeOff, Save, Loader2, CheckCircle,
-  AlertCircle, Video, FileText, X, Edit3, ExternalLink, Mail, Info
+  AlertCircle, Video, FileText, X, Edit3, ExternalLink, Mail, Info, Target
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
@@ -30,7 +30,7 @@ const SECTION_LABELS: Record<string, string> = {
   'faq': '❓ FAQ',
 };
 
-type Tab = 'sections' | 'branding' | 'media' | 'email';
+type Tab = 'sections' | 'branding' | 'media' | 'email' | 'tracking';
 
 interface MediaFile {
   name: string;
@@ -66,7 +66,9 @@ const SiteSettings: React.FC = () => {
     smtpPort: '465',
     smtpUser: '',
     smtpPassword: '',
-    notificationEmail: ''
+    notificationEmail: '',
+    metaPixelId: '',
+    metaAccessToken: ''
   });
   const faviconInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -296,6 +298,7 @@ const SiteSettings: React.FC = () => {
     { id: 'branding', label: 'Logo & Branding', icon: Globe },
     { id: 'media', label: 'Media Library', icon: ImageIcon },
     { id: 'email', label: 'Email Configuration', icon: Mail },
+    { id: 'tracking', label: 'Tracking & Pixel', icon: Target },
   ];
 
   return (
@@ -875,6 +878,79 @@ const SiteSettings: React.FC = () => {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ TRACKING TAB ═══ */}
+      {activeTab === 'tracking' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Target className="w-5 h-5 text-red-600" />
+                <h2 className="font-bold text-slate-900">Tracking & Conversions API</h2>
+              </div>
+              <button
+                onClick={saveSettings}
+                disabled={saving}
+                className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all disabled:opacity-50"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Save Tracking Settings
+              </button>
+            </div>
+
+            <div className="p-8 space-y-8">
+              <div className="bg-blue-50/50 rounded-2xl p-6 border border-blue-100">
+                <h3 className="text-lg font-black text-slate-900 mb-2">Meta Pixel & CAPI</h3>
+                <p className="text-sm font-medium text-slate-600 mb-4">Enable server-side lead tracking to improve ad performance and attribution.</p>
+                
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Meta Pixel ID</label>
+                    <input
+                      type="text"
+                      className="w-full md:w-1/2 p-3.5 rounded-xl bg-white border border-blue-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-slate-900 font-medium"
+                      placeholder="e.g., 123456789012345"
+                      value={settings.metaPixelId || ''}
+                      onChange={(e) => setSettings((prev: any) => ({ ...prev, metaPixelId: e.target.value }))}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Meta Conversions API (CAPI) Access Token</label>
+                    <textarea
+                      className="w-full p-3.5 rounded-xl bg-white border border-blue-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-slate-900 font-medium min-h-[120px]"
+                      placeholder="EAAB..."
+                      value={settings.metaAccessToken || ''}
+                      onChange={(e) => setSettings((prev: any) => ({ ...prev, metaAccessToken: e.target.value }))}
+                    />
+                    <p className="text-[11px] text-slate-500 mt-2">Generate this in the Meta Events Manager &gt; Settings &gt; Conversions API &gt; Generate access token.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200">
+                <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
+                  <Info className="w-4 h-4 text-slate-400" /> Implementation Details
+                </h3>
+                <ul className="text-[12px] space-y-3 text-slate-600 font-medium">
+                  <li className="flex items-start gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+                    <span>The Meta Pixel code will be automatically injected into your website's header.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+                    <span>When a lead is submitted, the server will securely send a <strong>Lead</strong> event with hashed customer details (Email, Phone) via the Conversions API.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+                    <span>Deduplication is handled automatically using the unique Lead ID.</span>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>

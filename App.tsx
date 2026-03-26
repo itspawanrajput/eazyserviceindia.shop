@@ -30,6 +30,10 @@ import EditPanel from './src/components/EditPanel';
 import SectionWrapper from './src/components/SectionWrapper';
 import ProtectedRoute from './src/components/ProtectedRoute';
 
+import ErrorLogs from './components/admin/ErrorLogs';
+import ChatbotConfig from './components/admin/ChatbotConfig';
+import ChatBot from './components/ChatBot';
+
 // Section registry — maps section IDs to their component + label
 const SECTION_LABELS: Record<string, string> = {
   'hero': 'Hero',
@@ -201,11 +205,16 @@ const App: React.FC = () => {
             <Route path="security" element={<SecuritySettings />} />
             <Route path="settings" element={<Settings />} />
             <Route path="site-settings" element={<SiteSettings />} />
+            <Route path="error-logs" element={<ErrorLogs />} />
+            <Route path="chatbot" element={<ChatbotConfig />} />
           </Route>
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <WhatsAppButton />
+        <ChatBot />
+        <ModalForm />
       </VisualBuilderProvider>
     </Router>
   );

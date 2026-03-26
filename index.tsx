@@ -10,6 +10,30 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
+
+// Global Error Tracking for Frontend
+import { reportClientError } from './services/api';
+
+window.onerror = function (message, source, lineno, colno, error) {
+  reportClientError({
+    message: String(message),
+    stack: error?.stack,
+    url: source,
+    line: lineno,
+    col: colno
+  }).catch(() => {});
+};
+
+window.addEventListener('unhandledrejection', function(event) {
+  reportClientError({
+    message: 'Unhandled Promise Rejection: ' + String(event.reason),
+    stack: event.reason?.stack,
+    url: window.location.href,
+    line: 0,
+    col: 0
+  }).catch(() => {});
+});
+
 root.render(
   <React.StrictMode>
     <App />

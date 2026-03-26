@@ -104,4 +104,20 @@ export const detectLocation = async (lat: number, lng: number): Promise<string> 
 export const getMediaList = () => api.get('/media/list').then(res => res.data);
 export const deleteMedia = (filename: string) => api.delete(`/media/${filename}`);
 
+// Error Logs
+export const getErrorLogs = (params?: string) => api.get(`/error-logs${params || ''}`).then(res => res.data);
+export const getErrorLogById = (id: number) => api.get(`/error-logs/${id}`).then(res => res.data);
+export const deleteErrorLog = (id: number) => api.delete(`/error-logs/${id}`);
+export const clearAllErrorLogs = () => api.delete('/error-logs');
+export const getErrorLogStats = () => api.get('/error-logs/stats').then(res => res.data);
+export const reportClientError = (data: any) => api.post('/error-logs/client', data);
+
+// AI Chatbot
+export const sendChatMessage = (message: string, sessionId: string) =>
+  api.post('/chat', { message, sessionId }).then(res => res.data);
+export const getChatConfig = () => api.get('/chat/config').then(res => res.data);
+export const getChatSessions = () => api.get('/chatbot/sessions').then(res => res.data);
+export const getChatSession = (id: string) => api.get(`/chatbot/sessions/${id}`).then(res => res.data);
+export const updateChatbotConfig = (config: any) => api.post('/chatbot/config', config);
+
 export default api;

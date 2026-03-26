@@ -93,7 +93,8 @@ const BookingForm: React.FC = () => {
     setIsSubmitting(true);
     setSubmitStatus('idle');
     try {
-      const payload: any = { source: 'Booking Form', ...trackingData };
+      const event_id = `lead_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const payload: any = { source: 'Booking Form', event_id, ...trackingData };
       if (coords) {
         payload.lat = coords.lat;
         payload.lng = coords.lng;
@@ -103,6 +104,15 @@ const BookingForm: React.FC = () => {
       });
 
       await createLead(payload);
+
+      // Fire Browser Pixel Event for Deduplication
+      if (typeof window !== 'undefined' && (window as any).fbq) {
+        (window as any).fbq('track', 'Lead', {
+          content_name: formData.service_type || 'General Service',
+          event_id: event_id
+        });
+      }
+
       setSubmitStatus('success');
       setFormData({});
       setCoords(null);

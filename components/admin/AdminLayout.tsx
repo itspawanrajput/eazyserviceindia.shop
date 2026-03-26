@@ -13,7 +13,9 @@ import {
   Search,
   ShieldCheck,
   Loader2,
-  Globe
+  Globe,
+  AlertTriangle,
+  Bot
 } from 'lucide-react';
 
 const AdminLayout: React.FC = () => {
@@ -49,6 +51,8 @@ const AdminLayout: React.FC = () => {
     { icon: LayoutDashboard, label: 'Dashboard', path: '/admin/dashboard' },
     { icon: Users, label: 'Leads', path: '/admin/leads' },
     { icon: ShieldCheck, label: 'Security', path: '/admin/security' },
+    { icon: AlertTriangle, label: 'Error Logs', path: '/admin/error-logs' },
+    { icon: Bot, label: 'AI Chatbot', path: '/admin/chatbot' },
     { icon: SettingsIcon, label: 'Settings', path: '/admin/settings' },
     { icon: Globe, label: 'Site Settings', path: '/admin/site-settings' },
   ];

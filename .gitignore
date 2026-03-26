@@ -25,3 +25,10 @@ dist-ssr
 # App Data
 database.sqlite
 .env
+dist/
+backups/
+uploads/
+*.zip
+*.tar.gz
+*.sql
+sync_live_data.js
