@@ -396,14 +396,23 @@ async function startServer() {
         res.json(settings);
     });
     app.post("/api/settings", authenticate, async (req, res) => {
-        const { settings } = req.body;
-        await db.run("DELETE FROM settings");
-        for (const [key, value] of Object.entries(settings)) {
-            await db.run("INSERT INTO settings (key, value) VALUES (?, ?)", [key, value]);
+        try {
+            const { settings } = req.body;
+            if (!settings || typeof settings !== 'object') {
+                return res.status(400).json({ error: "Invalid settings data" });
+            }
+            await db.run("DELETE FROM settings");
+            for (const [key, value] of Object.entries(settings)) {
+                await db.run("INSERT INTO settings (`key`, value) VALUES (?, ?)", [key, value]);
+            }
+            // Track in Git
+            trackChangeInGit("settings.json", settings, "Branding settings updated");
+            res.json({ message: "Settings updated" });
         }
-        // Track in Git
-        trackChangeInGit("settings.json", settings, "Branding settings updated");
-        res.json({ message: "Settings updated" });
+        catch (err) {
+            console.error("[API ERROR] Failed to update settings:", err);
+            res.status(500).json({ error: "Failed to update settings", details: err.message });
+        }
     });
     app.post("/api/settings/test-email", authenticate, async (req, res) => {
         try {
