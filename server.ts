@@ -355,6 +355,7 @@ async function startServer() {
       
       const pixelId = settings.metaPixelId;
       const accessToken = settings.metaAccessToken;
+      const testCode = settings.metaTestCode;
 
       if (!pixelId || !accessToken) return;
 
@@ -365,7 +366,7 @@ async function startServer() {
       const fbp = req.cookies['_fbp'];
       const fbc = req.cookies['_fbc'];
 
-      const eventData = {
+      const eventData: any = {
         data: [{
           event_name: eventName,
           event_time: Math.floor(Date.now() / 1000),
@@ -383,6 +384,10 @@ async function startServer() {
           event_id: customData.event_id // Used for deduplication with browser pixel
         }]
       };
+
+      if (testCode) {
+        eventData.test_event_code = testCode;
+      }
 
       await axios.post(`https://graph.facebook.com/v19.0/${pixelId}/events?access_token=${accessToken}`, eventData);
       console.log(`[META CAPI] Sent ${eventName} event for ${userData.email || userData.phone}`);

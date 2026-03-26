@@ -68,7 +68,8 @@ const SiteSettings: React.FC = () => {
     smtpPassword: '',
     notificationEmail: '',
     metaPixelId: '',
-    metaAccessToken: ''
+    metaAccessToken: '',
+    metaTestCode: ''
   });
   const faviconInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -928,6 +929,18 @@ const SiteSettings: React.FC = () => {
                       onChange={(e) => setSettings((prev: any) => ({ ...prev, metaAccessToken: e.target.value }))}
                     />
                     <p className="text-[11px] text-slate-500 mt-2">Generate this in the Meta Events Manager &gt; Settings &gt; Conversions API &gt; Generate access token.</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Meta Test Event Code (Optional)</label>
+                    <input
+                      type="text"
+                      className="w-full md:w-1/2 p-3.5 rounded-xl bg-white border border-blue-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-slate-900 font-medium"
+                      placeholder="e.g., TEST12345"
+                      value={settings.metaTestCode || ''}
+                      onChange={(e) => setSettings((prev: any) => ({ ...prev, metaTestCode: e.target.value }))}
+                    />
+                    <p className="text-[11px] text-slate-500 mt-2">Use this to see real-time events in the **Test Events** tab of Meta Events Manager.</p>
                   </div>
                 </div>
               </div>
