@@ -451,6 +451,38 @@ async function startServer() {
 
   // --- API Routes ---
 
+  // ─── Meta Marketing API Proxy (Ads Dashboard) ──────────────────────────
+  app.get("/api/meta/ads", authenticate, async (req, res) => {
+    try {
+      const rows = await db.all("SELECT * FROM settings");
+      const settings = rows.reduce((acc: any, row: any) => ({ ...acc, [row.key]: row.value }), {});
+      
+      const adAccountId = settings.metaAdAccountId;
+      const accessToken = settings.metaAccessToken;
+
+      if (!adAccountId || !accessToken) {
+        return res.status(400).json({ error: "Meta Ad Account ID or Access Token not configured." });
+      }
+
+      // Fetch campaign insights for the last 7 days
+      const url = `https://graph.facebook.com/v19.0/act_${adAccountId.replace('act_', '')}/insights`;
+      const response = await axios.get(url, {
+        params: {
+          access_token: accessToken,
+          level: 'campaign',
+          date_preset: 'last_7d',
+          fields: 'campaign_name,spend,impressions,clicks,actions,reach,cpc,ctr',
+          filtering: JSON.stringify([{ field: 'campaign.delivery_info', operator: 'IN', value: ['active', 'scheduled'] }])
+        }
+      });
+
+      res.json(response.data);
+    } catch (err: any) {
+      console.error("[META ADS API ERROR]", err.response?.data || err.message);
+      res.status(500).json({ error: "Failed to fetch Meta Ads data", details: err.response?.data?.error?.message || err.message });
+    }
+  });
+
   // Auth
   app.post("/api/auth/login", authLimiter, async (req, res) => {
     const { username, password } = req.body;
@@ -884,13 +916,37 @@ async function startServer() {
     const { status, assigned_to, quality_score, notes, new_activity } = req.body;
     
     try {
-      // First get current lead to append to activities array
-      const lead = await db.get("SELECT activities FROM leads WHERE id = ?", [req.params.id]);
+      // First get current lead to append to activities array & check status change
+      const oldLead = await db.get("SELECT status, name, email, phone, custom_data, activities FROM leads WHERE id = ?", [req.params.id]);
+      if (!oldLead) return res.status(404).send("Lead not found");
+
       let activities = [];
       try {
-        activities = JSON.parse(lead.activities || '[]');
+        activities = JSON.parse(oldLead.activities || '[]');
       } catch (e) {
         activities = [];
+      }
+
+      // ─── Fire Meta CAPI Purchase Event if Status updated to 'won' ─────────
+      if (status === 'won' && oldLead.status !== 'won') {
+        let event_id = null;
+        try {
+          const parsed = JSON.parse(oldLead.custom_data || '{}');
+          event_id = parsed.event_id;
+        } catch (e) {}
+
+        // Send 'Purchase' event to Meta to signify a won conversion
+        sendMetaCAPIEvent('Purchase', { 
+          email: oldLead.email, 
+          phone: oldLead.phone, 
+          name: oldLead.name 
+        }, { 
+          value: 0.00, // You can make this dynamic if you add a revenue field
+          currency: 'INR',
+          event_id: event_id || `won_${Date.now()}` // deduplicate if possible
+        }, req);
+        
+        console.log(`[META CAPI] Fired Purchase event for Won Lead ID: ${req.params.id}`);
       }
 
       if (new_activity) {

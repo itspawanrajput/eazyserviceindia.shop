@@ -69,7 +69,8 @@ const SiteSettings: React.FC = () => {
     notificationEmail: '',
     metaPixelId: '',
     metaAccessToken: '',
-    metaTestCode: ''
+    metaTestCode: '',
+    metaAdAccountId: ''
   });
   const faviconInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -941,6 +942,18 @@ const SiteSettings: React.FC = () => {
                       onChange={(e) => setSettings((prev: any) => ({ ...prev, metaTestCode: e.target.value }))}
                     />
                     <p className="text-[11px] text-slate-500 mt-2">Use this to see real-time events in the **Test Events** tab of Meta Events Manager.</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Meta Ad Account ID (Optional)</label>
+                    <input
+                      type="text"
+                      className="w-full md:w-1/2 p-3.5 rounded-xl bg-white border border-blue-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-slate-900 font-medium"
+                      placeholder="e.g., 123456789012345"
+                      value={settings.metaAdAccountId || ''}
+                      onChange={(e) => setSettings((prev: any) => ({ ...prev, metaAdAccountId: e.target.value }))}
+                    />
+                    <p className="text-[11px] text-slate-500 mt-2">Required for the on-site Ads Dashboard. Copy this from Meta Ads Manager URL or Settings.</p>
                   </div>
                 </div>
               </div>

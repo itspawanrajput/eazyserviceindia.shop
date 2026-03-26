@@ -15,7 +15,8 @@ import {
   Loader2,
   Globe,
   AlertTriangle,
-  Bot
+  Bot,
+  Target
 } from 'lucide-react';
 
 const AdminLayout: React.FC = () => {
@@ -53,6 +54,7 @@ const AdminLayout: React.FC = () => {
     { icon: ShieldCheck, label: 'Security', path: '/admin/security' },
     { icon: AlertTriangle, label: 'Error Logs', path: '/admin/error-logs' },
     { icon: Bot, label: 'AI Chatbot', path: '/admin/chatbot' },
+    { icon: Target, label: 'Meta Ads', path: '/admin/facebook-ads' },
     { icon: SettingsIcon, label: 'Settings', path: '/admin/settings' },
     { icon: Globe, label: 'Site Settings', path: '/admin/site-settings' },
   ];
