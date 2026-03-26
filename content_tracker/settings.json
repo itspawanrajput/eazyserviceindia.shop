@@ -1,0 +1,18 @@
+{
+  "siteName": "Eazy Service",
+  "contactEmail": "support@coolgoa.com",
+  "contactPhone": "+91 98765 43210",
+  "address": "Panjim, Goa, India",
+  "facebookUrl": "",
+  "instagramUrl": "",
+  "twitterUrl": "",
+  "maintenanceMode": "false",
+  "notificationEmail": "",
+  "smtpHost": "",
+  "smtpPort": "465",
+  "smtpUser": "",
+  "smtpPassword": "",
+  "googleSheetWebhookUrl": "",
+  "whatsappNotifyNumber": "",
+  "whatsappApiUrl": ""
+}
