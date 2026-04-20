@@ -3,9 +3,11 @@ import React from 'react';
 import { Phone, Mail, MapPin, Clock, Facebook, Instagram, ArrowUpRight, Zap } from 'lucide-react';
 import Editable from '../src/components/Editable';
 import { getSettings } from '../services/api';
+import { useVisualBuilder } from '../src/context/VisualBuilderContext';
 
 const Footer: React.FC = () => {
   const [siteSettings, setSiteSettings] = React.useState<any>({});
+  const { isEditMode } = useVisualBuilder();
 
   React.useEffect(() => {
     getSettings().then(setSiteSettings).catch(console.error);
@@ -54,12 +56,20 @@ const Footer: React.FC = () => {
             <div className="flex items-center space-x-3 mb-5">
               <Editable id="footer-logo" type="image">
                 <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center overflow-hidden shadow-lg">
-                  <img
-                    src={siteSettings.logoUrl || "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=200&auto=format&fit=crop"}
-                    alt={siteSettings.siteName || "EazyService Logo"}
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
+                  {siteSettings.logoUrl ? (
+                    <img
+                      src={siteSettings.logoUrl}
+                      alt={siteSettings.siteName || "EazyService Logo"}
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : isEditMode ? (
+                    <div className="w-full h-full bg-slate-200 animate-pulse" />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-blue-600 to-slate-900 flex items-center justify-center">
+                      <span className="text-white text-[10px] font-black tracking-tight">ES</span>
+                    </div>
+                  )}
                 </div>
               </Editable>
               <Editable id="footer-brand-name" type="text">

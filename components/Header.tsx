@@ -6,6 +6,7 @@ import { SectionID } from '../types';
 
 import Editable from '../src/components/Editable';
 import { getSettings } from '../services/api';
+import { useVisualBuilder } from '../src/context/VisualBuilderContext';
 
 const Header: React.FC = () => {
   const [searchValue, setSearchValue] = useState("");
@@ -14,6 +15,7 @@ const Header: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [siteSettings, setSiteSettings] = useState<any>({});
+  const { isEditMode } = useVisualBuilder();
 
   useEffect(() => {
     getSettings().then(setSiteSettings).catch(console.error);
@@ -93,12 +95,20 @@ const Header: React.FC = () => {
         >
           <Editable id="header-logo" type="image">
             <div className="relative w-10 h-10 md:w-12 md:h-12 flex items-center justify-center mr-3">
-               <img 
-                 src={siteSettings.logoUrl || "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=200&auto=format&fit=crop"} 
-                 alt={siteSettings.siteName || "EazyService Logo"} 
-                 className="w-full h-full object-cover rounded-full shadow-sm"
-                 referrerPolicy="no-referrer"
-               />
+              {siteSettings.logoUrl ? (
+                <img 
+                  src={siteSettings.logoUrl} 
+                  alt={siteSettings.siteName || "EazyService Logo"} 
+                  className="w-full h-full object-cover rounded-full shadow-sm"
+                  referrerPolicy="no-referrer"
+                />
+              ) : isEditMode ? (
+                <div className="w-full h-full rounded-full bg-slate-200 animate-pulse" />
+              ) : (
+                <div className="w-full h-full rounded-full bg-gradient-to-br from-blue-600 to-slate-900 flex items-center justify-center shadow-sm">
+                  <span className="text-white text-[10px] font-black tracking-tight">ES</span>
+                </div>
+              )}
             </div>
           </Editable>
           <div className="flex flex-col leading-tight justify-center mt-0.5">
