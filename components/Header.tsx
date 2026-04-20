@@ -15,10 +15,14 @@ const Header: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [siteSettings, setSiteSettings] = useState<any>({});
+  const [logoError, setLogoError] = useState(false);
   const { isEditMode } = useVisualBuilder();
 
   useEffect(() => {
-    getSettings().then(setSiteSettings).catch(console.error);
+    getSettings().then((settings) => {
+      setSiteSettings(settings);
+      setLogoError(false); // Reset error when settings reload
+    }).catch(console.error);
   }, []);
 
   // Typewriter effect for animated search bar placeholder
@@ -95,12 +99,13 @@ const Header: React.FC = () => {
         >
           <Editable id="header-logo" type="image">
             <div className="relative w-10 h-10 md:w-12 md:h-12 flex items-center justify-center mr-3">
-              {siteSettings.logoUrl ? (
+              {siteSettings.logoUrl && !logoError ? (
                 <img 
                   src={siteSettings.logoUrl} 
                   alt={siteSettings.siteName || "EazyService Logo"} 
                   className="w-full h-full object-cover rounded-full shadow-sm"
                   referrerPolicy="no-referrer"
+                  onError={() => setLogoError(true)}
                 />
               ) : isEditMode ? (
                 <div className="w-full h-full rounded-full bg-slate-200 animate-pulse" />

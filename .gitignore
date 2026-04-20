@@ -32,3 +32,4 @@ uploads/
 *.tar.gz
 *.sql
 sync_live_data.js
+.env

@@ -9,7 +9,7 @@ import Reviews from './components/Reviews';
 import FAQ from './components/FAQ';
 import Footer from './components/Footer';
 import WhatsAppButton from './components/WhatsAppButton';
-import ModalForm from './components/ModalForm';
+
 import { SERVICES } from './constants';
 import { ServiceData } from './types';
 import { useVisitorTracking } from './src/hooks/useVisitorTracking';
@@ -129,7 +129,7 @@ const PublicWebsite: React.FC<{ isEditMode?: boolean }> = ({ isEditMode = false 
 
         <Footer />
         <WhatsAppButton />
-        <ModalForm />
+
       </div>
     </div>
   );
@@ -216,7 +216,7 @@ const App: React.FC = () => {
         </Routes>
         <WhatsAppButton />
         <ChatBot />
-        <ModalForm />
+
       </VisualBuilderProvider>
     </Router>
   );
