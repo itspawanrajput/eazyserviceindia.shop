@@ -8,11 +8,11 @@ import Editable from '../src/components/Editable';
 import { useVisualBuilder } from '../src/context/VisualBuilderContext';
 
 const Hero: React.FC = () => {
-  const { pageData, device } = useVisualBuilder();
+  const { pageData, device, loading, isEditMode } = useVisualBuilder();
 
   const heroContainerData = pageData['hero-form-container'] || {};
   const heroContainerStyles = heroContainerData[device] || heroContainerData['desktop'] || {};
-  const heroBgUrl = heroContainerStyles.backgroundImage || 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=2000&auto=format&fit=crop';
+  const heroBgUrl = heroContainerStyles.backgroundImage || (isEditMode ? 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=2000&auto=format&fit=crop' : '');
 
   const scrollTo = (id: SectionID | string) => {
     // Visual builder prefixes service IDs with 'service-'
@@ -168,13 +168,19 @@ const Hero: React.FC = () => {
               <div className="relative min-h-[500px] md:min-h-[600px] rounded-2xl md:rounded-3xl overflow-hidden bg-[#78544B] shadow-2xl group flex items-center justify-center p-6 md:p-10">
                 {/* Background Image */}
                 <div className="absolute inset-0 z-0">
-                  <img 
-                    src={heroBgUrl} 
-                    alt="Background"
-                    className="w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-700"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-br from-black/60 to-transparent"></div>
+                  {heroBgUrl && !loading ? (
+                    <>
+                      <img 
+                        src={heroBgUrl} 
+                        alt="Background"
+                        className="w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-700"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-br from-black/60 to-transparent"></div>
+                    </>
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#78544B] via-[#5f6f8f] to-[#111827]" />
+                  )}
                 </div>
 
                 <HeroForm />

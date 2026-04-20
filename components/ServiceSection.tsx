@@ -5,6 +5,7 @@ import { ServiceData } from '../types';
 import { motion } from 'motion/react';
 
 import Editable from '../src/components/Editable';
+import { useVisualBuilder } from '../src/context/VisualBuilderContext';
 
 interface Props {
   service: ServiceData;
@@ -12,6 +13,11 @@ interface Props {
 }
 
 const ServiceSection: React.FC<Props> = ({ service, alternate }) => {
+  const { pageData, device, loading, isEditMode } = useVisualBuilder();
+  const imageData = pageData[`service-image-${service.id}`] || {};
+  const customImage = imageData[device]?.value;
+  const showImage = !loading && (customImage || isEditMode);
+
   return (
     <section id={service.id} className={`py-12 md:py-20 ${alternate ? 'bg-white' : 'bg-[#fcfcf9]'}`}>
       <div className="max-w-7xl mx-auto px-4">
@@ -28,14 +34,18 @@ const ServiceSection: React.FC<Props> = ({ service, alternate }) => {
             >
               {/* The Image with Large Rounded Corners (Pill-like) */}
               <div className="overflow-hidden rounded-[40px] md:rounded-[50px] shadow-xl aspect-[4/3] md:aspect-square lg:aspect-[4/3]">
-                <Editable id={`service-image-${service.id}`} type="image" className="w-full h-full">
-                  <img 
-                    src={service.image} 
-                    alt={service.heading} 
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    referrerPolicy="no-referrer"
-                  />
-                </Editable>
+                {showImage ? (
+                  <Editable id={`service-image-${service.id}`} type="image" className="w-full h-full">
+                    <img 
+                      src={customImage || service.image} 
+                      alt={service.heading} 
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      referrerPolicy="no-referrer"
+                    />
+                  </Editable>
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-slate-100 via-slate-200 to-slate-300 animate-pulse" />
+                )}
               </div>
 
               {/* Bottom Status Strip */}
